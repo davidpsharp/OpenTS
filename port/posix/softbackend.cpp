@@ -16,6 +16,7 @@
 
 #include "bgfxbackend.h"
 #include "dbgprint.h"
+#include "ftimer.h"
 #include "softscreen.h"
 
 #include <SDL3/SDL.h>
@@ -215,6 +216,24 @@ void Backend_End_Frame(void)
 	if (shot != nullptr && (++frames <= 10 || frames % 60 == 0)) {
 		SDL_SaveBMP(_Screen, shot);
 		DebugString("Video: %u frames presented\n", frames);
+	}
+
+	// OPENTS_FPS=1 logs, every five seconds, how many frames were presented and how many game
+	// frames ran each second.
+	static bool const fps = getenv("OPENTS_FPS") != nullptr;
+	if (fps) {
+		static Uint64 start = SDL_GetTicks();
+		static unsigned count = 0;
+		static int startframe = Frame;
+		count++;
+		Uint64 const now = SDL_GetTicks();
+		if (now - start >= 5000) {
+			double const seconds = (double)(now - start) / 1000.0;
+			DebugString("Video: %.1f frames a second presented, %.1f game frames\n", count / seconds, (Frame - startframe) / seconds);
+			start = now;
+			count = 0;
+			startframe = Frame;
+		}
 	}
 
 	SDL_Surface * target = SDL_GetWindowSurface(_Window);
