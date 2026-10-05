@@ -77,6 +77,14 @@ static unsigned char const _decoder[256] = {
 
 int const PacketChars = 4;
 
+/*
+**	Many system headers define BIG_ENDIAN whatever the byte order, as a value to compare
+**	BYTE_ORDER against, so the layout below is chosen from the compiler's own report.
+*/
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define BASE64_BIG_ENDIAN
+#endif
+
 
 /*
 **	The packet type is used to construct and disect the Base64 data blocks. The data
@@ -84,7 +92,7 @@ int const PacketChars = 4;
 */
 typedef union {
 	struct {
-#ifdef BIG_ENDIAN
+#ifdef BASE64_BIG_ENDIAN
 		unsigned char C1;
 		unsigned char C2;
 		unsigned char C3;
@@ -96,7 +104,7 @@ typedef union {
 		unsigned char pad;
 	} Char;
 	struct {
-#ifdef BIG_ENDIAN
+#ifdef BASE64_BIG_ENDIAN
 		unsigned O1:6;
 		unsigned O2:6;
 		unsigned O3:6;
