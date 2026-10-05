@@ -1,0 +1,13 @@
+| !Run for OpenTS. The game data (the MIX files) goes in this directory.
+Set OpenTS$Dir <Obey$Dir>
+RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad System:Modules.SharedULib
+RMEnsure SharedUnixLibrary 1.16 Error OpenTS needs SharedUnixLibrary 1.16 or later
+RMEnsure ARMEABISupport 1.03 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport
+RMEnsure ARMEABISupport 1.03 Error OpenTS needs ARMEABISupport 1.03 or later
+| DigitalRenderer plays the sound (through UnixLib's /dev/dsp). Without it the game is silent.
+RMEnsure DigitalRenderer 0.56 IfThere System:Modules.DRenderer Then RMLoad System:Modules.DRenderer
+| The heap goes in a dynamic area, so the slot only holds the program.
+Set OpenTS$Heap ""
+WimpSlot -min 32000K -max 32000K
+Dir <OpenTS$Dir>
+Run <OpenTS$Dir>.!RunImage %*0 >/<OpenTS$Dir>/stdout 2>/<OpenTS$Dir>/stderr

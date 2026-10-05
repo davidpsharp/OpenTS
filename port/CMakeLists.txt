@@ -89,7 +89,7 @@ add_library(miniaudio STATIC "${TP}/miniaudio-impl.c")
 target_include_directories(miniaudio PUBLIC "${TP}/miniaudio")
 target_compile_definitions(miniaudio PUBLIC
     MA_NO_DEVICE_IO MA_NO_ENGINE MA_NO_NODE_GRAPH MA_NO_RESOURCE_MANAGER MA_NO_GENERATION MA_NO_ENCODING
-    MA_NO_THREADING)
+    MA_NO_THREADING MA_NO_RUNTIME_LINKING)
 
 set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
