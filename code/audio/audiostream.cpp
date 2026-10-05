@@ -7,6 +7,9 @@
  * See LICENSE.md for applicable additional terms and warranty disclaimers.
  ******************************************************************************/
 
+#ifndef _WIN32
+#include "stackprime.h"
+#endif
 #include "audio/audiostream.h"
 
 #include "audio/audiodevice.h"
@@ -346,7 +349,11 @@ bool AudioFeederClass::Start(void)
 	Exit.store(false, std::memory_order_release);
 	Running.store(true, std::memory_order_release);
 	try {
+#ifdef _WIN32
 		Thread = std::thread([this]() { Run(); });
+#else
+		Thread = std::thread([this]() { Stack_Prime(STACK_PRIME_THREAD); Run(); });
+#endif
 	} catch (...) {
 		Running.store(false, std::memory_order_release);
 		return(false);

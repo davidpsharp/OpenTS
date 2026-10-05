@@ -63,6 +63,9 @@ set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
 set(SDL_VIDEO ON CACHE BOOL "" FORCE)
 set(SDL_AUDIO ON CACHE BOOL "" FORCE)
 set(SDL_RENDER ON CACHE BOOL "" FORCE)
+if(RISCOS)
+    set(SDL_LOADSO OFF CACHE BOOL "" FORCE) # a static program loads no shared libraries
+endif()
 foreach(subsystem GPU CAMERA JOYSTICK HAPTIC HIDAPI POWER SENSOR DIALOG TRAY)
     set(SDL_${subsystem} OFF CACHE BOOL "" FORCE)
 endforeach()
@@ -85,7 +88,8 @@ target_include_directories(lzo PUBLIC "${TP}/lzo/include" PRIVATE "${TP}/lzo/src
 add_library(miniaudio STATIC "${TP}/miniaudio-impl.c")
 target_include_directories(miniaudio PUBLIC "${TP}/miniaudio")
 target_compile_definitions(miniaudio PUBLIC
-    MA_NO_DEVICE_IO MA_NO_ENGINE MA_NO_NODE_GRAPH MA_NO_RESOURCE_MANAGER MA_NO_GENERATION MA_NO_ENCODING)
+    MA_NO_DEVICE_IO MA_NO_ENGINE MA_NO_NODE_GRAPH MA_NO_RESOURCE_MANAGER MA_NO_GENERATION MA_NO_ENCODING
+    MA_NO_THREADING)
 
 set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
@@ -146,6 +150,14 @@ target_compile_options(OpenTS PRIVATE
 # miniz for writepng.cpp comes from bimg, which this build does not otherwise use.
 target_sources(OpenTS PRIVATE "${TP}/bgfx.cmake/bimg/3rdparty/tinyexr/deps/miniz/miniz.c")
 target_link_libraries(OpenTS PRIVATE lzo miniaudio RmlUi::Core imgui SDL3::SDL3-static)
+
+if(RISCOS)
+    # Headers GCC 10's libstdc++ lacks.
+    target_include_directories(OpenTS BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/riscos/include")
+    target_sources(OpenTS PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/riscos/stack.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/riscos/aeabi.c")
+endif()
 
 if(OPENTS_ASAN)
     target_compile_options(OpenTS PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)

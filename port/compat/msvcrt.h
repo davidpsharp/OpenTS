@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdarg>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -50,3 +51,14 @@ unsigned int _controlfp(unsigned int newvalue, unsigned int mask);
 #define _PC_53 0x10000
 #define _MCW_RC 0x300
 #define _RC_NEAR 0
+
+#ifdef __riscos__
+/* GCC 10's <cmath> leaves the float functions out of namespace std. */
+#include <cmath>
+namespace std {
+using ::sinf; using ::cosf; using ::tanf; using ::asinf; using ::acosf; using ::atanf; using ::atan2f;
+using ::sqrtf; using ::fabsf; using ::floorf; using ::ceilf; using ::roundf; using ::truncf; using ::fmodf;
+using ::powf; using ::expf; using ::logf; using ::log10f; using ::log2f; using ::exp2f; using ::hypotf;
+using ::fminf; using ::fmaxf; using ::copysignf; using ::lroundf; using ::modff; using ::ldexpf; using ::frexpf;
+}
+#endif

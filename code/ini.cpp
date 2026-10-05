@@ -1876,10 +1876,21 @@ bool INIClass::Is_A_Section(char * buffer)
 	return(false);
 }
 
+/*
+**	Looking a std::string key up by string_view needs C++20's heterogeneous lookup, which
+**	older standard libraries (GCC 10's, used for RISC OS) lack; they get a std::string.
+*/
+#ifdef __cpp_lib_generic_unordered_lookup
+static std::string_view INI_Lookup_Key(std::string_view key) { return(key); }
+#else
+static std::string INI_Lookup_Key(std::string_view key) { return(std::string(key)); }
+#endif
+
+
 
 INIClass::INISection & INIClass::Find_Or_Add_Section(std::string_view name, INICommentBlock prefix)
 {
-	auto found = SectionIndex.find(name);
+	auto found = SectionIndex.find(INI_Lookup_Key(name));
 	if (found != SectionIndex.end()) {
 		return(*found->second);
 	}
@@ -1904,7 +1915,7 @@ INIClass::INISection & INIClass::Find_Or_Add_Section(std::string_view name, INIC
 /// <returns>The entry the value was stored on.</returns>
 INIClass::INIEntry & INIClass::Store_Entry(INISection & section, std::string_view entry, std::string_view value)
 {
-	auto found = section.EntryIndex.find(entry);
+	auto found = section.EntryIndex.find(INI_Lookup_Key(entry));
 	if (found != section.EntryIndex.end()) {
 		INIEntry & existing = *found->second;
 		existing.Value = value;

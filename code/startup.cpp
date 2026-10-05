@@ -309,6 +309,8 @@ static void RegisterClasses(void)
 /// <param name="argv">Receives the argument array, which lasts as long as the process.</param>
 /// <returns>The number of arguments, which is never less than one.</returns>
 #ifndef _WIN32
+#include "stackprime.h"
+
 static int PosixArgumentCount = 0;
 static char ** PosixArguments = NULL;
 #endif
@@ -1075,6 +1077,7 @@ void Emergency_Exit(void)
 /// </summary>
 int main(int argc, char ** argv)
 {
+	Stack_Prime(STACK_PRIME_MAIN);
 	PosixArgumentCount = argc;
 	PosixArguments = argv;
 	// OPENTS_FOCUS=1 starts as if the window had the focus, for runs nobody is watching.

@@ -15,6 +15,7 @@
 
 #include "audio/audiodevice.h"
 #include "dbgprint.h"
+#include "stackprime.h"
 
 #include <SDL3/SDL.h>
 
@@ -58,6 +59,12 @@ class SDLAudioDeviceClass : public AudioDeviceClass
 
 void SDLCALL SDLAudioDeviceClass::Feed(void * self, SDL_AudioStream * stream, int additional, int)
 {
+	static thread_local bool primed = false;
+	if (!primed) {
+		Stack_Prime(STACK_PRIME_THREAD);
+		primed = true;
+	}
+
 	SDLAudioDeviceClass * device = (SDLAudioDeviceClass *)self;
 	unsigned const framebytes = device->ChannelCount * sizeof(float);
 	while (additional > 0) {

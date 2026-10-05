@@ -1,0 +1,35 @@
+// std::source_location for GCC 10's libstdc++, which predates it. clang supplies the
+// builtins, so this is the C++20 class in full.
+#pragma once
+
+#include <cstdint>
+
+namespace std {
+
+struct source_location
+{
+	static constexpr source_location current(char const * file = __builtin_FILE(), char const * function = __builtin_FUNCTION(),
+											  uint_least32_t line = __builtin_LINE(), uint_least32_t column = __builtin_COLUMN()) noexcept
+	{
+		source_location where;
+		where.File = file;
+		where.Function = function;
+		where.Line = line;
+		where.Column = column;
+		return(where);
+	}
+
+	constexpr source_location() noexcept = default;
+	constexpr uint_least32_t line() const noexcept { return(Line); }
+	constexpr uint_least32_t column() const noexcept { return(Column); }
+	constexpr char const * file_name() const noexcept { return(File); }
+	constexpr char const * function_name() const noexcept { return(Function); }
+
+private:
+	char const * File = "";
+	char const * Function = "";
+	uint_least32_t Line = 0;
+	uint_least32_t Column = 0;
+};
+
+}

@@ -1,0 +1,12 @@
+#!/bin/sh
+# clang++ for RISC OS: compiles C++ for GCCSDK GCC 10 (arm-riscos-gnueabihf), whose
+# headers, libraries and linker the program uses. The flags match GCC's ABI: hard float
+# with VFPv3, full-size enums, no unaligned accesses (RISC OS traps them).
+T=${GCCSDK_ENV:-/root/gccsdk/env}/arm-riscos-gnueabihf
+exec clang++-18 --target=armv7a-none-eabihf -march=armv7-a -mtune=cortex-a72 \
+  -mfpu=vfpv3 -mfloat-abi=hard -mno-unaligned-access -fno-short-enums -femulated-tls \
+  -D__riscos__ -D__riscos -D__TARGET_UNIXLIB__ -D__ELF__ \
+  -nostdinc++ -nostdlibinc \
+  -isystem "$T/include/c++/10.2.0" -isystem "$T/include/c++/10.2.0/arm-riscos-gnueabihf" \
+  -isystem "$T/include/c++/10.2.0/backward" -isystem "$T/include" \
+  "$@"

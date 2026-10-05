@@ -21,7 +21,9 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#ifndef __riscos__
 #include <ifaddrs.h>
+#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
@@ -231,6 +233,11 @@ TransferResult PosixSocketClass::Receive_From(void * buffer, int length, IPXAddr
 /// </summary>
 bool PosixSocketClass::Local_Interfaces(std::vector<InterfaceType> & interfaces)
 {
+#ifdef __riscos__
+	// UnixLib has no getifaddrs, so no interface is listed.
+	(void)interfaces;
+	return(false);
+#else
 	ifaddrs * addresses = nullptr;
 
 	if (getifaddrs(&addresses) != 0) {
@@ -257,6 +264,7 @@ bool PosixSocketClass::Local_Interfaces(std::vector<InterfaceType> & interfaces)
 	freeifaddrs(addresses);
 
 	return(!interfaces.empty());
+#endif
 }
 
 }

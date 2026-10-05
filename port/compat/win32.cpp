@@ -16,6 +16,7 @@
 #include "windows.h"
 #include "io.h"
 #include "rcstrings.h"
+#include "../posix/stackprime.h"
 
 #include <algorithm>
 #include <cctype>
@@ -28,7 +29,9 @@
 #include <mutex>
 #include <string>
 #include <sys/stat.h>
+#ifndef __riscos__
 #include <sys/statvfs.h>
+#endif
 #include <thread>
 #include <unistd.h>
 
@@ -612,6 +615,15 @@ DWORD GetFullPathName(char const * name, DWORD size, char * buffer, char ** file
 
 BOOL GetDiskFreeSpaceEx(char const * directory, ULARGE_INTEGER * available, ULARGE_INTEGER * total, ULARGE_INTEGER * free)
 {
+#ifdef __riscos__
+	// UnixLib has no statvfs; report plenty, as the game only checks there is some.
+	(void)directory;
+	std::uint64_t const plenty = 1024ULL * 1024 * 1024;
+	if (available != nullptr) available->QuadPart = plenty;
+	if (total != nullptr) total->QuadPart = plenty;
+	if (free != nullptr) free->QuadPart = plenty;
+	return(TRUE);
+#else
 	std::string path = Native_Path((directory != nullptr && directory[0] != '\0') ? directory : ".");
 	struct statvfs info;
 	if (statvfs(path.c_str(), &info) != 0) {
@@ -623,6 +635,7 @@ BOOL GetDiskFreeSpaceEx(char const * directory, ULARGE_INTEGER * available, ULAR
 	if (total != nullptr) total->QuadPart = block * info.f_blocks;
 	if (free != nullptr) free->QuadPart = block * info.f_bfree;
 	return(TRUE);
+#endif
 }
 
 /*
@@ -817,6 +830,7 @@ HANDLE CreateThread(LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE start,
 {
 	HANDLE done = CreateEvent(nullptr, TRUE, FALSE, nullptr);
 	std::thread thread([start, parameter, done] {
+		Stack_Prime(STACK_PRIME_THREAD);
 		start(parameter);
 		SetEvent(done);
 	});

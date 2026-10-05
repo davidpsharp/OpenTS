@@ -13,7 +13,9 @@
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#if __has_include(<format>)
 #include <format>
+#endif
 #include <string_view>
 
 
@@ -169,6 +171,8 @@ struct TStringID
 };
 
 
+// Older standard libraries (GCC 10's, used for RISC OS) have no <format>.
+#if __has_include(<format>)
 template<int SIZE>
 struct std::formatter<TStringID<SIZE>> : std::formatter<std::string_view>
 {
@@ -177,3 +181,4 @@ struct std::formatter<TStringID<SIZE>> : std::formatter<std::string_view>
 		return(std::formatter<std::string_view>::format(std::string_view(string.data(), string.size()), context));
 	}
 };
+#endif
