@@ -144,7 +144,9 @@ TargetClass::TargetClass(Coord const & coord)
 AbstractTypeClass * xTargetClass::As_TypeClass(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<AbstractTypeClass *>(TargetTracker[ID]));
+		// The index takes the ID by reference, and xTargetClass is packed, so a copy is passed:
+		// a reference to the member itself would be read as aligned, which faults on RISC OS.
+		return(dynamic_cast<AbstractTypeClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -160,7 +162,7 @@ AbstractTypeClass * xTargetClass::As_TypeClass(void) const
 TagClass * xTargetClass::As_Tag(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<TagClass *>(TargetTracker[ID]));
+		return(dynamic_cast<TagClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -176,7 +178,7 @@ TagClass * xTargetClass::As_Tag(void) const
 TagTypeClass * xTargetClass::As_TagType(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<TagTypeClass *>(TargetTracker[ID]));
+		return(dynamic_cast<TagTypeClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -201,7 +203,7 @@ TagTypeClass * xTargetClass::As_TagType(void) const
 AbstractClass * xTargetClass::As_Abstract(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<AbstractClass *>(TargetTracker[ID]));
+		return(dynamic_cast<AbstractClass *>(TargetTracker[int(ID)]));
 	}
 
 	if (RTTI == RTTI_CELL) {
@@ -231,7 +233,7 @@ AbstractClass * xTargetClass::As_Abstract(void) const
 TechnoClass * xTargetClass::As_Techno(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(Dynamic_Cast<TechnoClass *>((ObjectClass *)TargetTracker[ID]));
+		return(Dynamic_Cast<TechnoClass *>((ObjectClass *)TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -256,7 +258,7 @@ TechnoClass * xTargetClass::As_Techno(void) const
 ObjectClass * xTargetClass::As_Object(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<ObjectClass *>(TargetTracker[ID]));
+		return(dynamic_cast<ObjectClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -272,7 +274,7 @@ ObjectClass * xTargetClass::As_Object(void) const
 FootClass * xTargetClass::As_Foot(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<FootClass *>(TargetTracker[ID]));
+		return(dynamic_cast<FootClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -296,7 +298,7 @@ FootClass * xTargetClass::As_Foot(void) const
 TriggerClass * xTargetClass::As_Trigger(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<TriggerClass *>(TargetTracker[ID]));
+		return(dynamic_cast<TriggerClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -312,7 +314,7 @@ TriggerClass * xTargetClass::As_Trigger(void) const
 HouseClass * xTargetClass::As_House(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<HouseClass *>(TargetTracker[ID]));
+		return(dynamic_cast<HouseClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -337,7 +339,7 @@ HouseClass * xTargetClass::As_House(void) const
 TechnoTypeClass * xTargetClass::As_TechnoType(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<TechnoTypeClass *>(TargetTracker[ID]));
+		return(dynamic_cast<TechnoTypeClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -362,7 +364,7 @@ TechnoTypeClass * xTargetClass::As_TechnoType(void) const
 TriggerTypeClass * xTargetClass::As_TriggerType(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<TriggerTypeClass *>(TargetTracker[ID]));
+		return(dynamic_cast<TriggerTypeClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -386,7 +388,7 @@ TriggerTypeClass * xTargetClass::As_TriggerType(void) const
 TeamTypeClass * xTargetClass::As_TeamType(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<TeamTypeClass *>(TargetTracker[ID]));
+		return(dynamic_cast<TeamTypeClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -402,7 +404,7 @@ TeamTypeClass * xTargetClass::As_TeamType(void) const
 TerrainClass * xTargetClass::As_Terrain(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<TerrainClass *>(TargetTracker[ID]));
+		return(dynamic_cast<TerrainClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -426,7 +428,7 @@ TerrainClass * xTargetClass::As_Terrain(void) const
 BulletClass * xTargetClass::As_Bullet(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<BulletClass *>(TargetTracker[ID]));
+		return(dynamic_cast<BulletClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -450,7 +452,7 @@ BulletClass * xTargetClass::As_Bullet(void) const
 AnimClass * xTargetClass::As_Anim(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<AnimClass *>(TargetTracker[ID]));
+		return(dynamic_cast<AnimClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -474,7 +476,7 @@ AnimClass * xTargetClass::As_Anim(void) const
 TeamClass * xTargetClass::As_Team(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<TeamClass *>(TargetTracker[ID]));
+		return(dynamic_cast<TeamClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -499,7 +501,7 @@ TeamClass * xTargetClass::As_Team(void) const
 InfantryClass * xTargetClass::As_Infantry(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<InfantryClass *>(TargetTracker[ID]));
+		return(dynamic_cast<InfantryClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -524,7 +526,7 @@ InfantryClass * xTargetClass::As_Infantry(void) const
 UnitClass * xTargetClass::As_Unit(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<UnitClass *>(TargetTracker[ID]));
+		return(dynamic_cast<UnitClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -548,7 +550,7 @@ UnitClass * xTargetClass::As_Unit(void) const
 BuildingClass * xTargetClass::As_Building(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<BuildingClass *>(TargetTracker[ID]));
+		return(dynamic_cast<BuildingClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
@@ -572,7 +574,7 @@ BuildingClass * xTargetClass::As_Building(void) const
 AircraftClass * xTargetClass::As_Aircraft(void) const
 {
 	if (RTTI == RTTI_ABSTRACT) {
-		return(dynamic_cast<AircraftClass *>(TargetTracker[ID]));
+		return(dynamic_cast<AircraftClass *>(TargetTracker[int(ID)]));
 	}
 	return(NULL);
 }
