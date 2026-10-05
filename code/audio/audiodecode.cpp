@@ -150,6 +150,17 @@ unsigned AudChunkDecoderClass::Decode_Chunk(void const * payload, unsigned comps
 				return(0);
 			}
 			Sos.Source = (char *)payload;
+			{
+				// The decoder reads a byte for every two samples it makes, but a stream's last
+				// chunk can hold fewer, so a short chunk is decoded from a zero padded copy.
+				unsigned const needed = (uncompsize + 3) / 4;
+				static thread_local unsigned char padded[AUD_MAX_CHUNK_UNCOMP_BYTES / 4 + 1];
+				if (compsize < needed && needed <= sizeof(padded)) {
+					memset(padded, 0, needed);
+					memcpy(padded, payload, compsize);
+					Sos.Source = (char *)padded;
+				}
+			}
 			Sos.Dest = (char *)Native;
 			if (BitSize == 16 && ChannelCount == 1) {
 				sosCODECDecompressData(&Sos, uncompsize);

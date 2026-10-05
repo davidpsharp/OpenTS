@@ -126,8 +126,10 @@ MixFileClass::MixFileClass(char const * filename, PKey const * key) :
 {
 	CCFileClass file(filename);		// Working file object.
 	Filename = strdup(file.File_Name());
-	FileStraw fstraw(file);
+	// The decrypting straw is made first so that it is destroyed last: a straw's destructor
+	// unhooks the one it reads from, so that one must still exist.
 	PKStraw pstraw(PKStraw::DECRYPT, CryptRandom);
+	FileStraw fstraw(file);
 	Straw * straw = &fstraw;
 
 	if (!file.Is_Available()) return;

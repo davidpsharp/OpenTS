@@ -363,7 +363,9 @@ bool Start_Scenario(char const * name, bool briefing, CampaignType campaign)
 	DebugString("\n----- Starting scnenario: %s -----\n", name);
 	DebugString("Player Count: %d\n", Session.Players.Count());
 
-	strcpy(Scen->ScenarioName, name);
+	if (name != Scen->ScenarioName) { // callers can pass the name already held
+		strcpy(Scen->ScenarioName, name);
+	}
 	strupr(Scen->ScenarioName);
 
 	Theme.Stop();
