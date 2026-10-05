@@ -2954,6 +2954,10 @@ int MapClass::Zone_Reset(void)
 		nzone[0] = 0xFFFF;
 	}
 
+	// A map with no cell inside the playfield yet, as a fresh one has, has no best zone.
+	if (bestzone < 0) {
+		return(0);
+	}
 	return(Zones[0][bestzone]);
 }
 

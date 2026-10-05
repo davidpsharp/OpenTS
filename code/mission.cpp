@@ -594,6 +594,11 @@ void MissionClass::Compute_CRC(CRCEngine &crc) const
 /// mission.</returns>
 MissionControlClass const & MissionClass::Current_Mission_Control(void) const
 {
+	// An object between missions has none (MISSION_NONE), which indexes before the table.
+	if (CurrentMission < 0 || CurrentMission >= MISSION_COUNT) {
+		static MissionControlClass const none;
+		return(none);
+	}
 	return(MissionControl[CurrentMission]);
 }
 
