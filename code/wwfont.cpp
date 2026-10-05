@@ -51,9 +51,22 @@
 #include "utf8.h"
 
 #include <algorithm>
+#include <cstring>
 
 
 #define FONTINFOMAXHEIGHT		4
+
+
+/// <summary>
+/// Reads one entry of a font's 16-bit table. The tables can start at an odd offset in the
+/// font data, and some processors fault on a 16-bit read from an odd address.
+/// </summary>
+static inline unsigned short Font_Table_Entry(void const * table, int index)
+{
+	unsigned short value;
+	memcpy(&value, ((unsigned char const *)table) + index * 2, sizeof(value));
+	return(value);
+}
 #define FONTINFOMAXWIDTH		5
 
 #define	FUDGEDIV		16
@@ -276,7 +289,7 @@ unsigned char WWFontClass::Glyph_Index(char32_t code) const
 	}
 
 	unsigned short const * fontoffset = (unsigned short const *)(((unsigned char const *)FontData) + FontData->OffsetBlockOffset);
-	if (index > ' ' && fontoffset[index] == 0) {
+	if (index > ' ' && Font_Table_Entry(fontoffset, index) == 0) {
 		return('?');
 	}
 	return((unsigned char)index);
@@ -512,8 +525,8 @@ Point2D WWFontClass::Print(char const * string, Surface & surface, Rect const & 
 			**	control the size of the character rectangle.
 			*/
 			int width = fontwidth[c];
-			int dheight = fontheight[c] >> 8;
-			int firstrow = fontheight[c] & 0xFF;
+			int dheight = Font_Table_Entry(fontheight, c) >> 8;
+			int firstrow = Font_Table_Entry(fontheight, c) & 0xFF;
 //			int height = dheight+firstrow;
 
 			/*
@@ -541,7 +554,7 @@ Point2D WWFontClass::Print(char const * string, Surface & surface, Rect const & 
 				**	data with clipping.
 				*/
 				if (FontData->FontCompress != (char) 2) { // if the font is the old style
-					unsigned char * dataptr = ((unsigned char *)FontData) + fontoffset[c];
+					unsigned char * dataptr = ((unsigned char *)FontData) + Font_Table_Entry(fontoffset, c);
 					void * drawbuff = (void*)(((char*)buffer) + ((ypos + firstrow) * surface.Stride()) + xpos * bbp);
 
 					for (int h = 0; h < dheight; h++) {
@@ -622,7 +635,7 @@ Point2D WWFontClass::Print(char const * string, Surface & surface, Rect const & 
 					}
 				} else {
 					// the font is of the new type
-					unsigned char * dataptr = ((unsigned char *)FontData) + fontoffset[c] + FontData->DataBlockOffset;
+					unsigned char * dataptr = ((unsigned char *)FontData) + Font_Table_Entry(fontoffset, c) + FontData->DataBlockOffset;
 					void * drawbuff = (void*)(((char*)buffer) + ((ypos + firstrow) * surface.Stride()) + xpos * bbp);
 
 					for (int h = 0; h < dheight; h++) {

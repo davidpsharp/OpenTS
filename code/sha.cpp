@@ -39,6 +39,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
 
 
 /***********************************************************************************************
@@ -277,7 +278,9 @@ void SHAEngine::Process_Block(void const * source, SHADigest & acc) const
 	**	Expand the source data into a large 80 * 32bit buffer. This is the working
 	**	data that will be transformed by the secure hash algorithm.
 	*/
-	int const * data = (int const *)source;
+	// Copied first, because the source need not be aligned for reading as words.
+	int data[SRC_BLOCK_SIZE/sizeof(int)];
+	memcpy(data, source, sizeof(data));
 	int index;
 	for (index = 0; index < SRC_BLOCK_SIZE/sizeof(int); index++) {
 		block[index] = Reverse_LONG(data[index]);

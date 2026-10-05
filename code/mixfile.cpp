@@ -45,6 +45,12 @@
 
 #include "mixfile.h"
 
+#ifdef __riscos__
+#include <map>
+#include <mutex>
+#include <string>
+#endif
+
 #include "bsearch.h"
 #include "buff.h"
 #include "ccfile.h"
@@ -279,7 +285,29 @@ MixFileClass::~MixFileClass(void)
 void const * MixFileClass::Retrieve(char const * filename)
 {
 	void * ptr = NULL;
+#ifdef __riscos__
+	/*
+	**	RISC OS traps unaligned loads, and a file inside a mix can start at any offset, so a
+	**	file that is not word aligned is handed out as an aligned copy. Each copy is made
+	**	once and kept, as the cached mix data is.
+	*/
+	int size = 0;
+	Offset(filename, &ptr, NULL, NULL, &size);
+	if (ptr != NULL && ((uintptr_t)ptr & 3) != 0 && size > 0) {
+		static std::mutex lock;
+		static std::map<std::pair<std::string, void *>, void *> copies;
+		std::lock_guard<std::mutex> guard(lock);
+		void *& copy = copies[std::make_pair(std::string(filename), ptr)];
+		if (copy == NULL) {
+			copy = malloc(size);
+			if (copy == NULL) return(ptr);
+			memcpy(copy, ptr, size);
+		}
+		ptr = copy;
+	}
+#else
 	Offset(filename, &ptr);
+#endif
 	return(ptr);
 };
 
