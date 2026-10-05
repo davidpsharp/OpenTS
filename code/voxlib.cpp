@@ -15,6 +15,7 @@
 #include "wwfile.h"
 
 #include <algorithm>
+#include <cstring>
 
 short VoxelPixelDeltaTable[VOXEL_BITMAP_WIDTH][2];
 unsigned char VoxelNormalTranslateTable[VOXEL_PALETTE_SIZE];
@@ -41,6 +42,18 @@ void __cdecl Draw_Voxel_Reverse_ZBuffer(VoxelFuncArgumentStruct * state);
  * type switches, which is why the last four entries repeat the four before them: a layer
  * without normals has nothing to light, so lighting does not change which drawer is wanted.
  */
+/*
+ * Reads one entry of a layer's span offset table. A layer's tables start wherever the layer
+ * before it ended in the file, which need not be word aligned, and some processors will not
+ * read a word from an unaligned address.
+ */
+static inline unsigned int Voxel_Span_Offset(unsigned char const * table, unsigned int index)
+{
+	unsigned int value;
+	memcpy(&value, table + index * sizeof(value), sizeof(value));
+	return(value);
+}
+
 VoxelFuncPtr VoxelDrawFunctions[16] = {
 	&Draw_Voxel_Regular_Normals,
 	&Draw_Voxel_Reverse_Normals,
@@ -849,7 +862,7 @@ static void __cdecl _voxel_draw_shadow(VoxelFuncArgumentStruct * state)
 
 		/// Iterate over voxel X columns (within the current Y row)
 		for (unsigned int x = 0; x < state->XSize; x++) {
-			unsigned int data_offset = ((unsigned int *)state->EndOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->EndOffset, state->StartIndex);
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 
@@ -1053,7 +1066,7 @@ void __cdecl Draw_Voxel_Regular_Normals(VoxelFuncArgumentStruct * state)
 
 		/// Iterate over voxel X columns (within the current Y row)
 		for (unsigned int x = 0; x < state->XSize; x++) {
-			unsigned int data_offset = ((unsigned int *)state->StartOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->StartOffset, state->StartIndex);
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 
@@ -1152,7 +1165,7 @@ void __cdecl Draw_Voxel_Reverse_Normals(VoxelFuncArgumentStruct * state)
 
 		/// Iterate over voxel X columns (within the current Y row)
 		for (unsigned int x = 0; x < state->XSize; x++) {
-			unsigned int data_offset = ((unsigned int *)state->EndOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->EndOffset, state->StartIndex);
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 
@@ -1256,7 +1269,7 @@ void __cdecl Draw_Voxel_Regular_Normals_ZBuffer(VoxelFuncArgumentStruct * state)
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 			unsigned short column_start_z = pixel_z;
-			unsigned int data_offset = ((unsigned int *)state->StartOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->StartOffset, state->StartIndex);
 
 			if (data_offset != UINT_MAX) {
 				unsigned char * ptr = state->DataOffset + data_offset;
@@ -1366,7 +1379,7 @@ void __cdecl Draw_Voxel_Reverse_Normals_ZBuffer(VoxelFuncArgumentStruct * state)
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 			unsigned short column_start_z = pixel_z;
-			unsigned int data_offset = ((unsigned int *)state->EndOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->EndOffset, state->StartIndex);
 
 			if (data_offset != UINT_MAX) {
 				unsigned char * ptr = state->DataOffset + data_offset;
@@ -1476,7 +1489,7 @@ void __cdecl Draw_Voxel_Regular_Normals_Lighting(VoxelFuncArgumentStruct * state
 
 		/// Iterate over voxel X columns (within the current Y row)
 		for (unsigned int x = 0; x < state->XSize; x++) {
-			unsigned int data_offset = ((unsigned int *)state->StartOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->StartOffset, state->StartIndex);
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 
@@ -1578,7 +1591,7 @@ void __cdecl Draw_Voxel_Reverse_Normals_Lighting(VoxelFuncArgumentStruct * state
 
 		/// Iterate over voxel X columns (within the current Y row)
 		for (unsigned int x = 0; x < state->XSize; x++) {
-			unsigned int data_offset = ((unsigned int *)state->EndOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->EndOffset, state->StartIndex);
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 
@@ -1685,7 +1698,7 @@ void __cdecl Draw_Voxel_Regular_Normals_ZBuffer_Lighting(VoxelFuncArgumentStruct
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 			unsigned short column_start_z = pixel_z;
-			unsigned int data_offset = ((unsigned int *)state->StartOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->StartOffset, state->StartIndex);
 
 			if (data_offset != UINT_MAX) {
 				unsigned char * ptr = state->DataOffset + data_offset;
@@ -1809,7 +1822,7 @@ void __cdecl Draw_Voxel_Reverse_Normals_ZBuffer_Lighting(VoxelFuncArgumentStruct
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 			unsigned short column_start_z = pixel_z;
-			unsigned int data_offset = ((unsigned int *)state->EndOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->EndOffset, state->StartIndex);
 
 			if (data_offset != UINT_MAX) {
 				unsigned char * ptr = state->DataOffset + data_offset;
@@ -1928,7 +1941,7 @@ void __cdecl Draw_Voxel_Regular(VoxelFuncArgumentStruct * state)
 
 		/// Iterate over voxel X columns (within the current Y row)
 		for (unsigned int x = 0; x < state->XSize; x++) {
-			unsigned int data_offset = ((unsigned int *)state->StartOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->StartOffset, state->StartIndex);
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 
@@ -2019,7 +2032,7 @@ void __cdecl Draw_Voxel_Reverse(VoxelFuncArgumentStruct * state)
 
 		/// Iterate over voxel X columns (within the current Y row)
 		for (unsigned int x = 0; x < state->XSize; x++) {
-			unsigned int data_offset = ((unsigned int *)state->EndOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->EndOffset, state->StartIndex);
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 
@@ -2116,7 +2129,7 @@ void __cdecl Draw_Voxel_Regular_ZBuffer(VoxelFuncArgumentStruct * state)
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 			unsigned short column_start_z = pixel_z;
-			unsigned int data_offset = ((unsigned int *)state->StartOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->StartOffset, state->StartIndex);
 
 			if (data_offset != UINT_MAX) {
 				unsigned char * ptr = state->DataOffset + data_offset;
@@ -2221,7 +2234,7 @@ void __cdecl Draw_Voxel_Reverse_ZBuffer(VoxelFuncArgumentStruct * state)
 			unsigned short column_start_x = pixel_x;
 			unsigned short column_start_y = pixel_y;
 			unsigned short column_start_z = pixel_z;
-			unsigned int data_offset = ((unsigned int *)state->EndOffset)[state->StartIndex];
+			unsigned int data_offset = Voxel_Span_Offset(state->EndOffset, state->StartIndex);
 
 			if (data_offset != UINT_MAX) {
 				unsigned char * ptr = state->DataOffset + data_offset;
