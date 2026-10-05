@@ -102,11 +102,13 @@ char * itoa(int value, char * buffer, int radix) { return(ltoa(value, buffer, ra
 ** Time
 */
 typedef std::chrono::steady_clock SteadyClock;
-static SteadyClock::time_point const _Start = SteadyClock::now();
-
+// Counted from the steady clock's epoch (the system start on macOS), as Windows counts
+// timeGetTime from boot. There is no origin to set, so timers started by game objects built
+// during static initialization agree with the rest, and the game sees the large values it
+// expects.
 static std::uint64_t Microseconds(void)
 {
-	return((std::uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(SteadyClock::now() - _Start).count());
+	return((std::uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(SteadyClock::now().time_since_epoch()).count());
 }
 
 DWORD timeGetTime(void) { return((DWORD)(Microseconds() / 1000)); }
