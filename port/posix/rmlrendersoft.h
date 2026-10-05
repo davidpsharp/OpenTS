@@ -18,6 +18,7 @@
 #include "ui/rml/rmlrender.h"
 
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 
 class UIRmlSoftRenderClass : public UIRmlRenderClass
@@ -78,6 +79,7 @@ class UIRmlSoftRenderClass : public UIRmlRenderClass
 		void Ensure_Stencil(void);
 
 		bool IsReady = false;
+		bool NoFastQuads = getenv("OPENTS_NOFASTQUADS") != nullptr; // for comparing the two paths
 		int ViewX = 0;
 		int ViewY = 0;
 		int ViewWidth = 0;

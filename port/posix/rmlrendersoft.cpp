@@ -214,6 +214,177 @@ bool UIRmlSoftRenderClass::Clip_Rect(int & x0, int & y0, int & x1, int & y1) con
 }
 
 
+
+// a * b / 255, rounded, for bytes.
+static inline unsigned Mul255(unsigned a, unsigned b)
+{
+	unsigned const t = a * b + 128;
+	return((t + (t >> 8)) >> 8);
+}
+
+
+/*
+** The fast path for the commonest shape the UI draws: an axis-aligned rectangle, made of two
+** triangles over four corners, of one colour, with its texture (if any) mapped straight
+** across it. Boxes, images and glyphs are all of this kind. It covers the same pixels as the
+** triangle rasteriser (pixel centres inside, left and top edges included) and blends the
+** same way, but steps in integers. Returns false if the six indices are not such a quad.
+*/
+static bool Draw_Quad(SoftScreen const & screen, int clipx0, int clipy0, int clipx1, int clipy1,
+	UIRmlSoftRenderClass::ScreenVertex const * vertices, int const * six, UIRmlSoftRenderClass::Texture const * texture)
+{
+	int const rs = screen.RedShift, bs = screen.BlueShift;
+	int corner[4];
+	int count = 0;
+	for (int i = 0; i < 6; i++) {
+		int const index = six[i];
+		bool seen = false;
+		for (int j = 0; j < count; j++) {
+			seen = seen || corner[j] == index;
+		}
+		if (!seen) {
+			if (count == 4) {
+				return(false);
+			}
+			corner[count++] = index;
+		}
+	}
+	if (count != 4) {
+		return(false);
+	}
+
+	UIRmlSoftRenderClass::ScreenVertex const & first = vertices[corner[0]];
+	float minx = first.X, maxx = first.X, miny = first.Y, maxy = first.Y;
+	for (int j = 1; j < 4; j++) {
+		minx = std::min(minx, vertices[corner[j]].X);
+		maxx = std::max(maxx, vertices[corner[j]].X);
+		miny = std::min(miny, vertices[corner[j]].Y);
+		maxy = std::max(maxy, vertices[corner[j]].Y);
+	}
+	if (!(maxx > minx) || !(maxy > miny) || !std::isfinite(minx) || !std::isfinite(maxx) || !std::isfinite(miny) || !std::isfinite(maxy)) {
+		return(false);
+	}
+
+	// Every corner on the box, all four corners present, one colour, and the texture
+	// coordinates depending only on x (u) and only on y (v).
+	float u0 = 0.0f, u1 = 0.0f, v0 = 0.0f, v1 = 0.0f;
+	unsigned seenmask = 0;
+	for (int j = 0; j < 4; j++) {
+		UIRmlSoftRenderClass::ScreenVertex const & v = vertices[corner[j]];
+		bool const left = v.X == minx, top = v.Y == miny;
+		if ((!left && v.X != maxx) || (!top && v.Y != maxy)) {
+			return(false);
+		}
+		if (v.R != first.R || v.G != first.G || v.B != first.B || v.A != first.A) {
+			return(false);
+		}
+		unsigned const bit = 1u << ((left ? 0 : 1) + (top ? 0 : 2));
+		if (seenmask & bit) {
+			return(false);
+		}
+		seenmask |= bit;
+	}
+	if (seenmask != 15) {
+		return(false);
+	}
+	bool haveu0 = false, haveu1 = false, havev0 = false, havev1 = false;
+	for (int j = 0; j < 4; j++) {
+		UIRmlSoftRenderClass::ScreenVertex const & v = vertices[corner[j]];
+		float & u = (v.X == minx) ? u0 : u1;
+		bool & haveu = (v.X == minx) ? haveu0 : haveu1;
+		if (haveu && u != v.U) return(false);
+		u = v.U; haveu = true;
+		float & w = (v.Y == miny) ? v0 : v1;
+		bool & havev = (v.Y == miny) ? havev0 : havev1;
+		if (havev && w != v.V) return(false);
+		w = v.V; havev = true;
+	}
+
+	// The two triangles must cover the box between them, rather than overlap in half of it.
+	auto twice_area = [&](int a, int b, int c) {
+		UIRmlSoftRenderClass::ScreenVertex const & p = vertices[a], & q = vertices[b], & r = vertices[c];
+		return(std::fabs((q.X - p.X) * (r.Y - p.Y) - (r.X - p.X) * (q.Y - p.Y)));
+	};
+	float const box = (maxx - minx) * (maxy - miny);
+	float const covered = twice_area(six[0], six[1], six[2]) + twice_area(six[3], six[4], six[5]);
+	if (std::fabs(covered - 2.0f * box) > 0.01f * box) {
+		return(false);
+	}
+
+	int x0 = std::max(clipx0, (int)std::ceil(minx - 0.5f));
+	int x1 = std::min(clipx1, (int)std::ceil(maxx - 0.5f));
+	int y0 = std::max(clipy0, (int)std::ceil(miny - 0.5f));
+	int y1 = std::min(clipy1, (int)std::ceil(maxy - 0.5f));
+	if (x1 <= x0 || y1 <= y0) {
+		return(true);
+	}
+
+	unsigned const cr = first.R, cg = first.G, cb = first.B, ca = first.A;
+	bool const white = cr == 255 && cg == 255 && cb == 255 && ca == 255;
+
+	if (texture == nullptr) {
+		if (ca == 0 && cr == 0 && cg == 0 && cb == 0) {
+			return(true);
+		}
+		unsigned const keep = 255 - ca;
+		std::uint32_t const solid = 0xFF000000u | (cr << rs) | (cg << 8) | (cb << bs);
+		for (int y = y0; y < y1; y++) {
+			std::uint32_t * row = screen.Pixels + (size_t)y * (size_t)screen.Pitch;
+			if (keep == 0) {
+				for (int x = x0; x < x1; x++) row[x] = solid;
+			} else {
+				for (int x = x0; x < x1; x++) {
+					std::uint32_t const dest = row[x];
+					unsigned const dr = std::min(cr + Mul255((dest >> rs) & 0xFF, keep), 255u);
+					unsigned const dg = std::min(cg + Mul255((dest >> 8) & 0xFF, keep), 255u);
+					unsigned const db = std::min(cb + Mul255((dest >> bs) & 0xFF, keep), 255u);
+					row[x] = 0xFF000000u | (dr << rs) | (dg << 8) | (db << bs);
+				}
+			}
+		}
+		return(true);
+	}
+
+	// Texel coordinates in 16.16, stepped per pixel.
+	int const tw = texture->Width, th = texture->Height;
+	double const dudx = (double)(u1 - u0) * tw / (double)(maxx - minx);
+	double const dvdy = (double)(v1 - v0) * th / (double)(maxy - miny);
+	std::int32_t const ustep = (std::int32_t)std::lround(dudx * 65536.0);
+	std::int32_t const ustart = (std::int32_t)std::floor(((double)u0 * tw + ((double)x0 + 0.5 - minx) * dudx) * 65536.0);
+	std::uint32_t const * pixels = texture->Pixels.data();
+
+	for (int y = y0; y < y1; y++) {
+		int ty = (int)std::floor((double)v0 * th + ((double)y + 0.5 - miny) * dvdy);
+		ty = ty < 0 ? 0 : (ty >= th ? th - 1 : ty);
+		std::uint32_t const * texrow = pixels + (size_t)ty * (size_t)tw;
+		std::uint32_t * row = screen.Pixels + (size_t)y * (size_t)screen.Pitch;
+		std::int32_t u = ustart;
+		for (int x = x0; x < x1; x++, u += ustep) {
+			int tx = u >> 16;
+			tx = tx < 0 ? 0 : (tx >= tw ? tw - 1 : tx);
+			std::uint32_t const texel = texrow[tx];
+			unsigned r = texel & 0xFF, g = (texel >> 8) & 0xFF, b = (texel >> 16) & 0xFF, a = texel >> 24;
+			if (!white) {
+				r = Mul255(r, cr); g = Mul255(g, cg); b = Mul255(b, cb); a = Mul255(a, ca);
+			}
+			if (a == 0 && r == 0 && g == 0 && b == 0) {
+				continue;
+			}
+			if (a == 255) {
+				row[x] = 0xFF000000u | (r << rs) | (g << 8) | (b << bs);
+				continue;
+			}
+			std::uint32_t const dest = row[x];
+			unsigned const keep = 255 - a;
+			unsigned const dr = std::min(r + Mul255((dest >> rs) & 0xFF, keep), 255u);
+			unsigned const dg = std::min(g + Mul255((dest >> 8) & 0xFF, keep), 255u);
+			unsigned const db = std::min(b + Mul255((dest >> bs) & 0xFF, keep), 255u);
+			row[x] = 0xFF000000u | (dr << rs) | (dg << 8) | (db << bs);
+		}
+	}
+	return(true);
+}
+
 static inline bool Top_Left(float ax, float ay, float bx, float by)
 {
 	// With the triangle wound clockwise on screen (y down), a top edge runs exactly left to
@@ -228,6 +399,7 @@ void UIRmlSoftRenderClass::Draw_Triangles(std::vector<ScreenVertex> const & vert
 	if (screen.Pixels == nullptr) {
 		return;
 	}
+	int const rs = screen.RedShift, bs = screen.BlueShift;
 
 	int clipx0, clipy0, clipx1, clipy1;
 	if (!Clip_Rect(clipx0, clipy0, clipx1, clipy1)) {
@@ -239,7 +411,14 @@ void UIRmlSoftRenderClass::Draw_Triangles(std::vector<ScreenVertex> const & vert
 		Ensure_Stencil();
 	}
 
+	// Quads take the fast path; only what is left goes through the general rasteriser.
+	bool const quads = kind == DRAW_COLOUR && !test_mask && !NoFastQuads;
 	for (size_t t = 0; t + 2 < indices.size(); t += 3) {
+		if (quads && (t % 6) == 0 && t + 5 < indices.size()
+			&& Draw_Quad(screen, clipx0, clipy0, clipx1, clipy1, vertices.data(), &indices[t], texture)) {
+			t += 3;
+			continue;
+		}
 		ScreenVertex const * a = &vertices[indices[t]];
 		ScreenVertex const * b = &vertices[indices[t + 1]];
 		ScreenVertex const * c = &vertices[indices[t + 2]];
@@ -331,10 +510,10 @@ void UIRmlSoftRenderClass::Draw_Triangles(std::vector<ScreenVertex> const & vert
 
 				std::uint32_t const dest = row[x];
 				unsigned const keep = 255 - al;
-				unsigned const dr = r + (((dest >> 16) & 0xFF) * keep + 127) / 255;
+				unsigned const dr = r + (((dest >> rs) & 0xFF) * keep + 127) / 255;
 				unsigned const dg = g + (((dest >> 8) & 0xFF) * keep + 127) / 255;
-				unsigned const db = bl + ((dest & 0xFF) * keep + 127) / 255;
-				row[x] = 0xFF000000u | (std::min(dr, 255u) << 16) | (std::min(dg, 255u) << 8) | std::min(db, 255u);
+				unsigned const db = bl + (((dest >> bs) & 0xFF) * keep + 127) / 255;
+				row[x] = 0xFF000000u | (std::min(dr, 255u) << rs) | (std::min(dg, 255u) << 8) | (std::min(db, 255u) << bs);
 			}
 		}
 	}
