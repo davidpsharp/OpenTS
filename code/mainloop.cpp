@@ -32,6 +32,7 @@
 #include "command.h"
 #include "conquer.h"
 #include "data.h"
+#include "dbgprint.h"
 #include "debug.h"
 #include "dialog.h"
 #include "dsurface.h"
@@ -53,6 +54,9 @@
 #include "rules.h"
 #include "savemgr.h"
 #include "scenario.h"
+#include "infantry.h"
+#include "unit.h"
+
 #include "scheme.h"
 #include "session.h"
 #include "stats.h"
@@ -404,6 +408,26 @@ bool Main_Loop(void)
 		**	counter.
 		*/
 		Frame++;
+
+		/*
+		**	OPENTS_SYNCLOG=1 logs a summary of the game state every 500 frames, so two runs
+		**	of the same game on different machines can be compared to find where they part.
+		*/
+		static bool const synclog = getenv("OPENTS_SYNCLOG") != NULL;
+		if (synclog && (Frame % 500) == 0) {
+			unsigned position = 0;
+			for (int index = 0; index < Units.Count(); index++) {
+				Coord const coord = Units[index]->Center_Coord();
+				position = position * 31 + (unsigned)(coord.X * 7 + coord.Y * 3 + coord.Z);
+			}
+			for (int index = 0; index < Infantry.Count(); index++) {
+				Coord const coord = Infantry[index]->Center_Coord();
+				position = position * 31 + (unsigned)(coord.X * 7 + coord.Y * 3 + coord.Z);
+			}
+			DebugString("Sync: frame %d, random %d/%d, units %d, infantry %d, buildings %d, bullets %d, anims %d, particles %d, positions %08x\n",
+				Frame, Scen->RandomNumber.Index_1(), Scen->RandomNumber.Index_2(), Units.Count(), Infantry.Count(),
+				Buildings.Count(), Bullets.Count(), Anims.Count(), ParticleSystems.Count(), position);
+		}
 
 #ifdef _DEBUG
 		/*
