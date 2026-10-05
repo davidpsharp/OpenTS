@@ -54,6 +54,7 @@
 #include "rawfile.h"
 
 #include "file.h"
+#include "dbgprint.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -62,6 +63,13 @@
 
 #ifndef _WIN32
 #include <ctime>
+#ifndef _WIN32
+#include <dirent.h>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#endif
 #include <sys/stat.h>
 #include <unistd.h>
 #include <utime.h>
@@ -308,10 +316,16 @@ int RawFileClass::Open(int rights)
 				break;
 
 			case WRITE:
+#ifndef _WIN32
+				File_Existence_Forget();
+#endif
 				Handle = fopen(Filename, "wb");
 				break;
 
 			case READ|WRITE:
+#ifndef _WIN32
+				File_Existence_Forget();
+#endif
 				// SKB 5/13/99 try "r+" first before using "w+" so that files
 				//             does not get destroyed.
 				Handle = fopen(Filename, "r+b");
@@ -345,6 +359,99 @@ int RawFileClass::Open(int rights)
 	return(true);
 }
 
+
+
+#ifndef _WIN32
+/*
+**	Whether a file exists, answered from a listing of its directory. Opening every candidate
+**	in every search path is slow on RISC OS, and reading a theater's tile control file asks
+**	thousands of times, each for a different name and nearly all for files that are not there.
+**	A directory is listed once; the game's own writes and deletions forget the listings. The
+**	first answers are checked against a real open, and a single disagreement (from a name
+**	the listing spells differently) turns the listings off.
+*/
+static int const EXISTENCE_CHECKS = 200;
+
+struct ExistenceStateType {
+	std::mutex Lock;
+	std::unordered_map<std::string, std::unordered_set<std::string>> Listings;
+	int Checked = 0;
+	bool Disabled = getenv("OPENTS_NODIRCACHE") != nullptr;
+};
+
+static ExistenceStateType & Existence(void)
+{
+	static ExistenceStateType state;
+	return(state);
+}
+
+static std::string Existence_Fold(char const * text)
+{
+	std::string folded(text);
+	for (char & c : folded) {
+		c = (char)tolower((unsigned char)c);
+	}
+	return(folded);
+}
+
+void File_Existence_Forget(void)
+{
+	ExistenceStateType & state = Existence();
+	std::lock_guard<std::mutex> guard(state.Lock);
+	state.Listings.clear();
+}
+
+static bool File_Exists_By_Open(char const * name)
+{
+	FILE * handle = fopen(name, "r");
+	if (handle == nullptr) {
+		return(false);
+	}
+	fclose(handle);
+	return(true);
+}
+
+static bool File_Exists(char const * name)
+{
+	ExistenceStateType & state = Existence();
+	std::unique_lock<std::mutex> guard(state.Lock);
+	if (state.Disabled) {
+		guard.unlock();
+		return(File_Exists_By_Open(name));
+	}
+
+	char const * slash = strrchr(name, '/');
+	std::string const directory = slash != nullptr ? std::string(name, slash - name + 1) : std::string("./");
+	std::string const leaf = Existence_Fold(slash != nullptr ? slash + 1 : name);
+
+	auto listing = state.Listings.find(directory);
+	if (listing == state.Listings.end()) {
+		std::unordered_set<std::string> names;
+		if (DIR * dir = opendir(directory.c_str())) {
+			while (dirent * entry = readdir(dir)) {
+				names.insert(Existence_Fold(entry->d_name));
+			}
+			closedir(dir);
+		}
+		listing = state.Listings.emplace(directory, std::move(names)).first;
+	}
+	bool const listed = listing->second.count(leaf) != 0;
+
+	if (state.Checked < EXISTENCE_CHECKS) {
+		state.Checked++;
+		guard.unlock();
+		bool const opened = File_Exists_By_Open(name);
+		if (opened != listed) {
+			guard.lock();
+			state.Disabled = true;
+			DebugString("Files: the listing of %s says %s is %s, but it %s; looking files up by opening them\n",
+				directory.c_str(), leaf.c_str(), listed ? "there" : "not there", opened ? "opens" : "does not open");
+		}
+		return(opened);
+	}
+	return(listed);
+}
+#endif
 
 /***********************************************************************************************
  * RawFileClass::Is_Available -- Checks to see if the specified file is available to open.     *
@@ -388,6 +495,9 @@ bool RawFileClass::Is_Available(int forced)
 	**	CD-ROM, this routine will return a failure condition. In all but the missing file
 	**	condition, go through the normal error recover channels.
 	*/
+#ifndef _WIN32
+	return(File_Exists(Filename));
+#else
 	Handle = fopen(Filename, "r");
 	if (Handle == nullptr) {
 		return(false);
@@ -402,6 +512,7 @@ bool RawFileClass::Is_Available(int forced)
 	Handle = nullptr;
 
 	return(true);
+#endif
 }
 
 
@@ -846,6 +957,9 @@ int RawFileClass::Delete(void)
 			return(false);
 		}
 
+#ifndef _WIN32
+		File_Existence_Forget();
+#endif
 		if (_unlink(Filename) < 0) {
 			Error(errno, false, Filename);
 			return(false);

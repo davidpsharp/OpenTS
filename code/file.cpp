@@ -17,7 +17,7 @@
 
 #include <cstring>
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__riscos__)
 static void Resolve_File_Single(char * fname)
 {
 	Find_File_Data * ffblk;
@@ -38,9 +38,11 @@ static void Resolve_File_Single(char * fname)
 }
 #endif
 
+// RISC OS's filing systems ignore case, as Windows's do, so there is nothing to resolve there;
+// listing directories to match names costs tens of seconds when the theater's tiles load.
 void Resolve_File(char * fname)
 {
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__riscos__)
 	// step through each sub-directory before going for the win
 	char * next = fname;
 	while (next = strchr(next, '/')) {

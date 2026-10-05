@@ -17,6 +17,11 @@
 
 void Resolve_File(char * fname);
 
+#ifndef _WIN32
+// Forgets which files were found to exist, after something has created, changed or removed one.
+void File_Existence_Forget(void);
+#endif
+
 class Find_File_Data
 {
 	public:

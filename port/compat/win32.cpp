@@ -18,6 +18,9 @@
 #include "rcstrings.h"
 #include "../posix/stackprime.h"
 
+// In code/rawfile.cpp: forgets which files were found to exist, after one changes.
+void File_Existence_Forget(void);
+
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -309,6 +312,9 @@ static HANDLE Wrap_File(int fd)
 
 HANDLE CreateFile(char const * name, DWORD access, DWORD, LPSECURITY_ATTRIBUTES, DWORD creation, DWORD, HANDLE)
 {
+	if ((access & GENERIC_WRITE) != 0 || creation == CREATE_ALWAYS || creation == CREATE_NEW || creation == OPEN_ALWAYS) {
+		File_Existence_Forget();
+	}
 	std::string path = Native_Path(name);
 	int flags = 0;
 	if ((access & GENERIC_READ) && (access & GENERIC_WRITE)) {
@@ -472,6 +478,7 @@ BOOL GetFileAttributesEx(char const * name, GET_FILEEX_INFO_LEVELS, void * resul
 
 BOOL CreateDirectory(char const * name, void *)
 {
+	File_Existence_Forget();
 	std::string path = Native_Path(name);
 	if (mkdir(path.c_str(), 0777) != 0) {
 		Set_Errno_Error();
@@ -482,12 +489,14 @@ BOOL CreateDirectory(char const * name, void *)
 
 BOOL RemoveDirectory(char const * name)
 {
+	File_Existence_Forget();
 	std::string path = Native_Path(name);
 	return(rmdir(path.c_str()) == 0);
 }
 
 BOOL DeleteFile(char const * name)
 {
+	File_Existence_Forget();
 	std::string path = Native_Path(name);
 	if (unlink(path.c_str()) != 0) {
 		Set_Errno_Error();
@@ -498,6 +507,7 @@ BOOL DeleteFile(char const * name)
 
 BOOL MoveFileEx(char const * from, char const * to, DWORD flags)
 {
+	File_Existence_Forget();
 	std::string source = Native_Path(from);
 	std::string dest = Native_Path(to);
 	if (!(flags & MOVEFILE_REPLACE_EXISTING) && access(dest.c_str(), F_OK) == 0) {
@@ -518,6 +528,7 @@ BOOL MoveFile(char const * from, char const * to)
 
 BOOL CopyFile(char const * from, char const * to, BOOL failifexists)
 {
+	File_Existence_Forget();
 	std::string source = Native_Path(from);
 	std::string dest = Native_Path(to);
 	if (failifexists && access(dest.c_str(), F_OK) == 0) {
