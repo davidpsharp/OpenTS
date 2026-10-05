@@ -27,6 +27,9 @@
 #include <cmath>
 #include <cstdio>
 #include <vector>
+#ifndef _WIN32
+#include "riscoswheel.h"
+#endif
 
 
 namespace
@@ -533,6 +536,10 @@ void Main_Window_Pump_Events(void)
 	if (_Window == nullptr) {
 		return;
 	}
+
+#ifndef _WIN32
+	RISCOS_Poll_Wheel();
+#endif
 
 	SDL_Event sdlevent;
 	while (SDL_PollEvent(&sdlevent)) {
