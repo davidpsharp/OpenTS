@@ -65,7 +65,7 @@ static char CompressionBuffer[2 * VOXEL_BITMAP_WIDTH];
 /// NULL is returned if the buffer has no room left.</returns>
 StaticBufferClass::Entry * StaticBufferClass::Add(Surface & surface, SurfaceRegion const & region)
 {
-	Entry * header = (Entry *)Reserve(sizeof(Entry));
+	Entry * header = (Entry *)Reserve_Entry();
 	if (header == NULL) {
 		return(NULL);
 	}
@@ -112,7 +112,7 @@ StaticBufferClass::Entry * StaticBufferClass::Add(Surface & surface, SurfaceRegi
 /// NULL is returned if the buffer has no room left.</returns>
 StaticBufferClass::Entry * StaticBufferClass::Add(Surface & surface, Rect const & cliprect, short x, short y)
 {
-	Entry * header = (Entry *)Reserve(sizeof(Entry));
+	Entry * header = (Entry *)Reserve_Entry();
 	if (header == NULL) {
 		return(NULL);
 	}

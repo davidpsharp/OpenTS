@@ -3502,11 +3502,10 @@ void Tactical::Draw_Waypoints(bool inshroud)
 	 * drawer's translation table to make the line "march". Preserve those entries up front
 	 * and restore them once every path has been drawn.
 	 */
-	int * dashtable = (int *)((unsigned short *)MouseDrawer->Get_Translate_Table() + 1);
-	int dashsave0 = dashtable[0];
-	int dashsave1 = dashtable[1];
-	int dashsave2 = dashtable[2];
-	int dashsave3 = dashtable[3];
+	// Copied as bytes: one entry in, the four ints are not aligned for reading as words.
+	unsigned char * dashtable = (unsigned char *)((unsigned short *)MouseDrawer->Get_Translate_Table() + 1);
+	unsigned char dashsave[4 * sizeof(int)];
+	memcpy(dashsave, dashtable, sizeof(dashsave));
 
 	ShapeSet const * mouseshapes = (ShapeSet const *)MixFileClass::Retrieve("MOUSE.SHP");
 	int coloridx = TheaterClass::As_Reference(Scen->Theater).IsArctic ? BLACK : LTGREY;
@@ -3573,10 +3572,7 @@ void Tactical::Draw_Waypoints(bool inshroud)
 	/*
 	 * Restore the translation table entries the dashed-line drawer animated.
 	 */
-	dashtable[0] = dashsave0;
-	dashtable[1] = dashsave1;
-	dashtable[2] = dashsave2;
-	dashtable[3] = dashsave3;
+	memcpy(dashtable, dashsave, sizeof(dashsave));
 }
 
 

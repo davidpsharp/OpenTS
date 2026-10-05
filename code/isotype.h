@@ -28,7 +28,11 @@ class LightConvertClass;
 class Surface;
 class ShapeSet;
 
-#pragma pack(4)
+/*
+ * Packed to one byte: the records lie at any offset in a tile file, so the compiler must not
+ * assume their members are aligned, which processors that fault on unaligned loads need.
+ */
+#pragma pack(1)
 struct IsoTileRecord
 {
 	/*
@@ -109,8 +113,15 @@ struct IsoTileRecord
 	 */
 	RGBStruct LowColor;
 	RGBStruct HighColor;
+
+	/*
+	 * The file pads each record to a multiple of four bytes.
+	 */
+	unsigned char Padding[3];
 };
 static_assert(sizeof(IsoTileRecord) == 52, "a TMP tile record is 52 bytes on disk");
+static_assert(offsetof(IsoTileRecord, Height) == 40, "the tile file puts the height at byte 40");
+static_assert(offsetof(IsoTileRecord, HighColor) == 46, "the tile file puts the high color at byte 46");
 #pragma pack()
 
 #pragma pack(4)

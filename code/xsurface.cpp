@@ -53,6 +53,8 @@
 #include "blitblit.h"
 
 #include <cassert>
+#include <cstdint>
+#include <cstring>
 #include <utility>
 
 /***********************************************************************************************
@@ -803,11 +805,31 @@ static inline void *surface_quick_fill(void *buf, int count, int color)
 {
 	unsigned int * ptr = (unsigned int *)buf;
 
-	for (int index = 0; index < count; index++) {
-		*ptr++ = (unsigned int)color;
+	if (((std::uintptr_t)buf & 3) == 0) {
+		for (int index = 0; index < count; index++) {
+			*ptr++ = (unsigned int)color;
+		}
+		return(ptr);
 	}
 
-	return(ptr);
+	// A row that starts on an odd 16 bit pixel is not word aligned, which some processors
+	// will not store to, so the fill goes a halfword (or a byte) at a time.
+	unsigned char * bytes = (unsigned char *)buf;
+	unsigned int const value = (unsigned int)color;
+	if (((std::uintptr_t)buf & 1) == 0) {
+		unsigned short * half = (unsigned short *)buf;
+		unsigned short const low = (unsigned short)value;
+		unsigned short const high = (unsigned short)(value >> 16);
+		for (int index = 0; index < count; index++) {
+			*half++ = low;
+			*half++ = high;
+		}
+	} else {
+		for (int index = 0; index < count; index++) {
+			memcpy(bytes + index * 4, &value, 4);
+		}
+	}
+	return(bytes + count * 4);
 }
 
 

@@ -46,6 +46,19 @@
 #include "rect.h"
 
 #include <algorithm>
+#include <cstring>
+
+
+/*
+**	Reads the length that starts each line of RLE data. The lines are any length, so the
+**	next one can start at an odd address, where some processors won't read a halfword.
+*/
+static inline unsigned short RLE_Line_Length(void const * line)
+{
+	unsigned short length;
+	memcpy(&length, line, sizeof(length));
+	return(length);
+}
 
 
 /***********************************************************************************************
@@ -565,7 +578,7 @@ bool RLE_Blit(Surface & dest, Rect const & dcliprect, Rect const & ddrect, Surfa
 	**	by line basis because the length of each line is Variable.
 	*/
 	while (topmargin > 0) {
-		sbuffer = ((unsigned char *)sbuffer) + (*(unsigned short *)sbuffer);
+		sbuffer = ((unsigned char *)sbuffer) + RLE_Line_Length(sbuffer);
 		topmargin--;
 	}
 
@@ -592,7 +605,7 @@ bool RLE_Blit(Surface & dest, Rect const & dcliprect, Rect const & ddrect, Surfa
 		/*
 		**	Advance the source and dest pointers for the next line processing.
 		*/
-		sbuffer = ((unsigned char *)sbuffer) + (*(unsigned short *)sbuffer);
+		sbuffer = ((unsigned char *)sbuffer) + RLE_Line_Length(sbuffer);
 		dbuffer = (void *)(((char *)dbuffer) + dstride);
 		if (DepthBuffer != NULL) {
 			zbuffer_offset += zbuffer_pitch;

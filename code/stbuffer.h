@@ -11,6 +11,8 @@
 
 #include "rect.h"
 
+#include <cstdint>
+
 class Surface;
 
 struct SurfaceRegion {
@@ -61,6 +63,20 @@ class StaticBufferClass
 
 		StaticBufferClass::Entry * Add(Surface & surface, SurfaceRegion const & region);
 		StaticBufferClass::Entry * Add(Surface & surface, Rect const & cliprect, short x, short y);
+
+		/*
+		**	Reserves room for an entry header, starting it where its members can be read in
+		**	place. The compressed rows before it can end at any byte.
+		*/
+		unsigned char * Reserve_Entry(void)
+		{
+			std::uintptr_t const mask = alignof(Entry) - 1;
+			int const pad = (int)((alignof(Entry) - ((std::uintptr_t)Cursor & mask)) & mask);
+			if (pad != 0 && Reserve(pad) == NULL) {
+				return(NULL);
+			}
+			return(Reserve(sizeof(Entry)));
+		}
 
 		unsigned char * Reserve(int size)
 		{
