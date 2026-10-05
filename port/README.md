@@ -73,6 +73,7 @@ nobody is watching:
 | `OPENTS_FOCUS=1` | Starts as if the window had the focus. |
 | `OPENTS_SHOT=<file.bmp>` | Saves the screen for each of the first 10 frames presented, then every 60th. |
 | `OPENTS_FPS=1` | Logs the presented and game frame rates every five seconds. |
+| `OPENTS_SYNCLOG=1` | Logs a summary of the game state every 500 frames. The same `SPAWN.INI` game gives the same lines on the Mac and the Pi, so a difference shows where two machines part. |
 
 On RISC OS these are system variables (`*Set OPENTS_FPS 1`).
 
@@ -81,7 +82,7 @@ speed.
 
 ## Known gaps
 
-- Text drawn through GDI fonts (`ownrdraw.cpp`) is not drawn.
+- Text drawn through GDI fonts (`ownrdraw.cpp`) is not drawn; only the end credits use it.
 - The developer overlay (Dear ImGui) is not drawn by the software renderer.
 - Where `long` is 64 bits (macOS), structures that use `long` for on-disk or network data
   are the wrong size; the VQA library, SHA and Base64 have been fixed. RISC OS, like
