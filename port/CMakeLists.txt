@@ -18,6 +18,8 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 option(OPENTS_ASAN "Build with AddressSanitizer" OFF)
+# Reports each misaligned load or store, which RISC OS on ARMv7 faults on, and carries on.
+option(OPENTS_ALIGNCHECK "Build with the alignment sanitizer" OFF)
 
 #
 # Generated headers: the build stamp and the string names, as the main build makes them,
@@ -169,3 +171,9 @@ if(OPENTS_ASAN)
     target_link_options(OpenTS PRIVATE -fsanitize=address,undefined)
 endif()
 
+if(OPENTS_ALIGNCHECK)
+    target_compile_options(OpenTS PRIVATE -fsanitize=alignment -fno-omit-frame-pointer)
+    # Mix files are handed out aligned, as on RISC OS, so only what RISC OS would hit is reported.
+    target_compile_definitions(OpenTS PRIVATE OPENTS_ALIGNED_RETRIEVE)
+    target_link_options(OpenTS PRIVATE -fsanitize=alignment)
+endif()

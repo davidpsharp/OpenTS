@@ -45,7 +45,7 @@
 
 #include "mixfile.h"
 
-#ifdef __riscos__
+#if defined(__riscos__) || defined(OPENTS_ALIGNED_RETRIEVE)
 #include <map>
 #include <mutex>
 #include <string>
@@ -285,7 +285,7 @@ MixFileClass::~MixFileClass(void)
 void const * MixFileClass::Retrieve(char const * filename)
 {
 	void * ptr = NULL;
-#ifdef __riscos__
+#if defined(__riscos__) || defined(OPENTS_ALIGNED_RETRIEVE)
 	/*
 	**	RISC OS traps unaligned loads, and a file inside a mix can start at any offset, so a
 	**	file that is not word aligned is handed out as an aligned copy. Each copy is made
