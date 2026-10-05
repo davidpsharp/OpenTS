@@ -323,15 +323,23 @@ void __cdecl VQA_sosCODECDecompressData(void * src, void * dst, unsigned short b
 		unsigned short index = (unsigned short)info->wIndex;
 		unsigned short index2 = (unsigned short)info->wIndex2;
 
-		Decode_Table_16(source, dest, perchannel, 2, info->dwPredicted, index);
-		Decode_Table_16(source + (bytes >> 3), dest + 1, perchannel, 2, info->dwPredicted2, index2);
+		// The state is packed, so it goes through locals: a reference to a packed member
+		// is read as if it were aligned, which faults where unaligned loads do.
+		int32_t predicted = info->dwPredicted;
+		int32_t predicted2 = info->dwPredicted2;
+		Decode_Table_16(source, dest, perchannel, 2, predicted, index);
+		Decode_Table_16(source + (bytes >> 3), dest + 1, perchannel, 2, predicted2, index2);
+		info->dwPredicted = predicted;
+		info->dwPredicted2 = predicted2;
 
 		info->wIndex = (short)index;
 		info->wIndex2 = (short)index2;
 	} else if (channels == 1) {
 		unsigned short index = (unsigned short)info->wIndex;
 
-		Decode_Table_16(source, dest, (int)(bytes / 2), 1, info->dwPredicted, index);
+		int32_t predicted = info->dwPredicted;
+		Decode_Table_16(source, dest, (int)(bytes / 2), 1, predicted, index);
+		info->dwPredicted = predicted;
 
 		info->wIndex = (short)index;
 	}

@@ -22,6 +22,19 @@ typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 
+/*
+** Reads one 16-bit entry of the pointer stream. Some decoders advance through the stream a
+** byte at a time, so an entry can be at an odd address, which some processors won't read
+** as a halfword.
+*/
+static inline uint16_t Read_Pointer(uint8_t const * src)
+{
+	uint16_t value;
+	memcpy(&value, src, sizeof(value));
+	return(value);
+}
+
+
 void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
 {
 	bufwidth *= 2u;
@@ -402,8 +415,8 @@ void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 
 	while (dst < end) {
 
-		uint32_t command = (*(uint16_t *)src & 0xE000);
-		uint16_t cb_index = (*(uint16_t *)src & 0x1FFF);
+		uint32_t command = (Read_Pointer(src) & 0xE000);
+		uint16_t cb_index = (Read_Pointer(src) & 0x1FFF);
 		src += 2;
 
 		switch (command) {
@@ -734,8 +747,8 @@ void __cdecl UnVQ2_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 
 	while (dst < end) {
 
-		uint32_t command = (*(uint16_t *)src & 0xE000);
-		uint32_t cb_index = (*(uint16_t *)src & 0x1FFF);
+		uint32_t command = (Read_Pointer(src) & 0xE000);
+		uint32_t cb_index = (Read_Pointer(src) & 0x1FFF);
 		src += 2;
 
 		switch (command) {
