@@ -67,7 +67,7 @@ class MovieSinkClass : public AudioStreamProducerClass
 		unsigned Min_Ring_Frames(void) const override { return(1); }
 
 		// Called by the player's fill callback, on whichever thread ran it.
-		long Load(void * buffer, long nbytes)
+		int32_t Load(void * buffer, int32_t nbytes)
 		{
 			if (!Used || buffer == nullptr || nbytes <= 0 || PendingCount >= MAX_PENDING_BLOCKS) {
 				return(VQAERR_AUDIO);
@@ -120,9 +120,9 @@ class MovieSinkClass : public AudioStreamProducerClass
 MovieSinkClass _sink;
 
 
-long Open_Audio_Handler(VQAHandleP * vqap, AhandleInitParams * params, long nbytes)
+int32_t Open_Audio_Handler(VQAHandleP * vqap, AhandleInitParams * params, int32_t nbytes)
 {
-	if (!AudioEngine.Is_Available() || params == nullptr || nbytes != (long)sizeof(AhandleInitParams) || _sink.Used) {
+	if (!AudioEngine.Is_Available() || params == nullptr || nbytes != (int32_t)sizeof(AhandleInitParams) || _sink.Used) {
 		return(VQAERR_AUDIO);
 	}
 	VQAConfig * config = &vqap->Config;
@@ -179,7 +179,7 @@ long Open_Audio_Handler(VQAHandleP * vqap, AhandleInitParams * params, long nbyt
 }
 
 
-long Play_Audio_Handler(VQAHandleP * vqap)
+int32_t Play_Audio_Handler(VQAHandleP * vqap)
 {
 	(void)vqap;
 	if (!_sink.Used || !_sink.Started) {
@@ -195,7 +195,7 @@ long Play_Audio_Handler(VQAHandleP * vqap)
 }
 
 
-long Start_Audio_Handler(VQAHandleP * vqap)
+int32_t Start_Audio_Handler(VQAHandleP * vqap)
 {
 	if (!_sink.Used) {
 		return(VQAERR_AUDIO);
@@ -229,7 +229,7 @@ long Start_Audio_Handler(VQAHandleP * vqap)
 }
 
 
-long Pause_Audio_Handler(VQAHandleP * vqap)
+int32_t Pause_Audio_Handler(VQAHandleP * vqap)
 {
 	(void)vqap;
 	if (_sink.Used && _sink.Started && !_sink.Paused) {
@@ -241,7 +241,7 @@ long Pause_Audio_Handler(VQAHandleP * vqap)
 }
 
 
-long Stop_Audio_Handler(VQAHandleP * vqap)
+int32_t Stop_Audio_Handler(VQAHandleP * vqap)
 {
 	(void)vqap;
 	if (_sink.Used && _sink.Started) {
@@ -260,7 +260,7 @@ long Stop_Audio_Handler(VQAHandleP * vqap)
 }
 
 
-long Close_Audio_Handler(VQAHandleP * vqap)
+int32_t Close_Audio_Handler(VQAHandleP * vqap)
 {
 	if (_sink.Used) {
 		Stop_Audio_Handler(vqap);
@@ -277,13 +277,13 @@ long Close_Audio_Handler(VQAHandleP * vqap)
 } // namespace
 
 
-unsigned long __cdecl Simple_Timer_Callback_Audio_Handler(VQAHandle *)
+uint32_t __cdecl Simple_Timer_Callback_Audio_Handler(VQAHandle *)
 {
 	return(Get_Game_Time_50());
 }
 
 
-unsigned long __cdecl Timer_Callback_Audio_Handler(VQAHandle * vqa)
+uint32_t __cdecl Timer_Callback_Audio_Handler(VQAHandle * vqa)
 {
 	VQAHandleP * vqap = (VQAHandleP *)vqa;
 	if (!_sink.Used || _sink.Owner != vqa) {
@@ -296,19 +296,19 @@ unsigned long __cdecl Timer_Callback_Audio_Handler(VQAHandle * vqa)
 }
 
 
-long __cdecl Lock_Audio_Handler(void)
+int32_t __cdecl Lock_Audio_Handler(void)
 {
 	return(1);
 }
 
 
-long __cdecl Unlock_Audio_Handler(void)
+int32_t __cdecl Unlock_Audio_Handler(void)
 {
 	return(1);
 }
 
 
-intptr_t __cdecl Stream_Audio_Handler(VQAHandle * vqa, long action, void * buffer, long nbytes)
+intptr_t __cdecl Stream_Audio_Handler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes)
 {
 	VQAHandleP * vqap = (VQAHandleP *)vqa;
 

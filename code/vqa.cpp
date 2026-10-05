@@ -39,10 +39,10 @@
 
 DynamicVectorClass<VQHandle *> IngameVQ;
 
-intptr_t __cdecl VQAMixFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes);
-intptr_t __cdecl VQACCFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes);
-intptr_t __cdecl VQAEventHandler(VQAHandle * vqa, long action, void * buffer, long nbytes);
-intptr_t __cdecl VQAMemoryHandler(VQAHandle * vqa, long action, void * buffer, long nbytes);
+intptr_t __cdecl VQAMixFileHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes);
+intptr_t __cdecl VQACCFileHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes);
+intptr_t __cdecl VQAEventHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes);
+intptr_t __cdecl VQAMemoryHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes);
 
 void VQA_Message_Handler(void)
 {
@@ -214,7 +214,7 @@ VQAClass::~VQAClass(void)
 }
 
 
-long VQAClass::Cache_VQA(unsigned long bytes_to_cache)
+int32_t VQAClass::Cache_VQA(uint32_t bytes_to_cache)
 {
 	if (!IsFileOpen) {
 		IsFileOpen = FileHandle.Open(Filename, FileClass::READ) != 0;
@@ -259,10 +259,10 @@ long VQAClass::Cache_VQA(unsigned long bytes_to_cache)
 }
 
 
-long VQAClass::CacheHandler(long action, void * buffer, long nbytes)
+int32_t VQAClass::CacheHandler(int32_t action, void * buffer, int32_t nbytes)
 {
 	//unsigned long pos;
-	long rc = 1;
+	int32_t rc = 1;
 
 	switch (action) {
 		case VQACMD_INIT:
@@ -384,7 +384,7 @@ bool VQAClass::Set_Loop(int loop_id, int iterations)
 	if (iterations < 0) {
 		iterations = -1;
 	}
-	long rc = VQA_SetLoop(Handle, loop_id, iterations, 1);
+	int32_t rc = VQA_SetLoop(Handle, loop_id, iterations, 1);
 	if (rc == VQAERR_NONE) {
 		return(true);
 	}
@@ -406,7 +406,7 @@ bool VQAClass::Set_Loop(int start, int end, int iterations)
 		iterations = -1;
 	}
 
-	long rc = VQA_SetLoop_Internal(Handle, start, end, iterations, 0);
+	int32_t rc = VQA_SetLoop_Internal(Handle, start, end, iterations, 0);
 	if (rc == VQAERR_NONE) {
 		return(true);
 	}
@@ -468,7 +468,7 @@ bool VQAClass::Seek_To_Stored_Frame(void)
  *=========================================================================*/
 int VQAClass::Play_VQA(int last_frame_to_play, bool nobreakout)
 {
-	long errval;
+	int32_t errval;
 
 	bool brokeout = false;
 	bool sleeping = false;
@@ -479,9 +479,9 @@ int VQAClass::Play_VQA(int last_frame_to_play, bool nobreakout)
 	VQA_SetStop(Handle, last_frame_to_play);
 
 	if (PrimaryColorMode != -1) {
-		long blockw;
-		long blockh;
-		long cmode;
+		int32_t blockw;
+		int32_t blockh;
+		int32_t cmode;
 		VQA_GetBlockInfo(Handle, blockw, blockh, cmode);
 		if (cmode == 1) {
 			Hicolor_Init_Table(PrimaryColorMode);
@@ -614,9 +614,9 @@ bool VQAClass::Advance_Frame(bool & finished)
 	if (!IsAdvanceReady) {
 		VQA_SetStop(Handle, TotalFrames);
 		if (PrimaryColorMode != -1) {
-			long blockw;
-			long blockh;
-			long cmode;
+			int32_t blockw;
+			int32_t blockh;
+			int32_t cmode;
 			VQA_GetBlockInfo(Handle, blockw, blockh, cmode);
 			if (cmode == 1 || cmode == 4) {
 				Hicolor_Init_Table(PrimaryColorMode);
@@ -746,7 +746,7 @@ bool VQAClass::Set_Draw_Buffer(void * buffer, int buffer_width, int buffer_heigh
 	if (y_offset == -1) {
 		y_offset = 0;
 	}
-	long rc = VQA_Set_DrawBuffer(Handle, (unsigned char *)buffer, buffer_width, buffer_height, x_offset, y_offset);
+	int32_t rc = VQA_Set_DrawBuffer(Handle, (unsigned char *)buffer, buffer_width, buffer_height, x_offset, y_offset);
 	if (rc == VQAERR_NONE) {
 		return(true);
 	}
@@ -793,9 +793,9 @@ bool VQAClass::Handle_Unlock_Event(void)
 }
 
 
-long VQAClass::CCFileHandler(long action, void * buffer, long nbytes)
+int32_t VQAClass::CCFileHandler(int32_t action, void * buffer, int32_t nbytes)
 {
-	long error = 1;
+	int32_t error = 1;
 	unsigned char tmp;
 
 	/*
@@ -903,7 +903,7 @@ long VQAClass::CCFileHandler(long action, void * buffer, long nbytes)
 }
 
 
-intptr_t __cdecl VQACCFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes)
+intptr_t __cdecl VQACCFileHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes)
 {
 	VQAHandleP *vqap = (VQAHandleP *)vqa;
 	VQAConfig *config = &vqap->Config;
@@ -913,9 +913,9 @@ intptr_t __cdecl VQACCFileHandler(VQAHandle * vqa, long action, void * buffer, l
 }
 
 
-long VQAClass::MixFileHandler(long action, void * buffer, long nbytes)
+int32_t VQAClass::MixFileHandler(int32_t action, void * buffer, int32_t nbytes)
 {
-	long error = 1;
+	int32_t error = 1;
 	unsigned char tmp;
 
 	/*
@@ -1030,7 +1030,7 @@ long VQAClass::MixFileHandler(long action, void * buffer, long nbytes)
 }
 
 
-intptr_t __cdecl VQAMixFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes)
+intptr_t __cdecl VQAMixFileHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes)
 {
 	VQAHandleP *vqap = (VQAHandleP *)vqa;
 	VQAConfig *config = &vqap->Config;
@@ -1040,7 +1040,7 @@ intptr_t __cdecl VQAMixFileHandler(VQAHandle * vqa, long action, void * buffer, 
 }
 
 
-intptr_t /*__cdecl*/ VQACacheHandler(VQAHandle * vqa, long action, void * buffer, long nbytes)
+intptr_t /*__cdecl*/ VQACacheHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes)
 {
 	VQAHandleP *vqap = (VQAHandleP *)vqa;
 	VQAConfig *config = &vqap->Config;
@@ -1050,7 +1050,7 @@ intptr_t /*__cdecl*/ VQACacheHandler(VQAHandle * vqa, long action, void * buffer
 }
 
 
-intptr_t __cdecl VQAMemoryHandler(VQAHandle * vqa, long action, void * buffer, long nbytes)
+intptr_t __cdecl VQAMemoryHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes)
 {
 	intptr_t error = 0;
 
@@ -1097,7 +1097,7 @@ static void VQAScalePalette(unsigned char *palette)
 }
 
 
-intptr_t __cdecl VQAEventHandler(VQAHandle * vqa, long action, void * buffer, long nbytes)
+intptr_t __cdecl VQAEventHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes)
 {
 	VQAHandleP *vqap = (VQAHandleP *)vqa;
 	VQAConfig *config = &vqap->Config;
@@ -1173,10 +1173,10 @@ void vqanoop3(void)
  * HISTORY:                                                                                    *
  *   07/04/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-long MixFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes)
+int32_t MixFileHandler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes)
 {
 	CCFileClass * file;
-	long        error;
+	int32_t        error;
 
 	file = (CCFileClass *)vqa->VQAio;
 
@@ -1229,7 +1229,7 @@ long MixFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes)
 				error = FileHandle.Open((char *)buffer, FileClass::READ);
 
 				if (error != -1) {
-					vqa->VQAio = (unsigned long)file;
+					vqa->VQAio = (uint32_t)file;
 					error = 0;
 				} else {
 					delete file;

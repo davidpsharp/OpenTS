@@ -164,16 +164,16 @@ class VQAClass;
 typedef void  (__cdecl *UNVQ_FUNC)(uint8_t *codebook, uint8_t *pointers, uint8_t *buffer, size_t blocksperrow, size_t numrows, size_t bufwidth);
 
 // Handlers must be this type
-typedef intptr_t (__cdecl *VQA_H_FUNC)(VQAHandle *vqa, long action, void *buffer, long nbytes);
+typedef intptr_t (__cdecl *VQA_H_FUNC)(VQAHandle *vqa, int32_t action, void *buffer, int32_t nbytes);
 
 // draw callback must be this type
-typedef long (__cdecl *VQA_DC_FUNC)(VQAHandle *vqa, long framenum);
+typedef int32_t (__cdecl *VQA_DC_FUNC)(VQAHandle *vqa, int32_t framenum);
 
 // timer callback must be this type
-typedef unsigned long (__cdecl *VQA_TC_FUNC)(VQAHandle *vqa);
+typedef uint32_t (__cdecl *VQA_TC_FUNC)(VQAHandle *vqa);
 
 // unused callback must be this type
-typedef unsigned long (__cdecl *VQA_UC_FUNC)(VQAHandle *vqa);
+typedef uint32_t (__cdecl *VQA_UC_FUNC)(VQAHandle *vqa);
 
 /* VQAConfig: Player configuration structure
  *
@@ -239,24 +239,24 @@ typedef struct _VQAConfig {
 
 	int					X1;
 	int					Y1;
-	long          FrameRate;
-	long          DrawRate;
+	int32_t          FrameRate;
+	int32_t          DrawRate;
 	int					RefreshRate;
 
 	/// Unused
 	int					field_3C;
 
-	long          DrawFlags;
-	long          OptionFlags;
-	long          NumFrameBufs;
-	long          NumCBBufs;
+	int32_t          DrawFlags;
+	int32_t          OptionFlags;
+	int32_t          NumFrameBufs;
+	int32_t          NumCBBufs;
 
 	/// Unused
 	int					field_50;
 
 	unsigned char *AudioBuf;
-	long          AudioBufSize;
-	long          HMIBufSize;
+	int32_t          AudioBufSize;
+	int32_t          HMIBufSize;
 	int					AudioRate;
 	int					Volume;
 
@@ -291,7 +291,7 @@ typedef struct _VQAConfig {
 	int					field_7C;
 	int					field_80;
 
-	unsigned long		LatencyAdjustment;
+	uint32_t		LatencyAdjustment;
 } VQAConfig;
 
 /* Drawer Configuration flags (DrawFlags) */
@@ -349,7 +349,7 @@ typedef struct _VQAConfig {
  * VQAio - Something meaningful to the IO manager. (See DOCS)
  */
 typedef struct _VQAHandle {
-	unsigned long VQAio;
+	uint32_t VQAio;
 } VQAHandle;
 
 // derives from AMIGA IFF handling https://wiki.amigaos.net/wiki/IFFParse_Library
@@ -398,22 +398,22 @@ void VQA_Reset(VQAHandle *vqa);
 //VQAHandle *VQA_Alloc(void);
 //void VQA_Init(VQAHandle *, long (*)());
 /* File routines. */
-long VQA_Open(char const *, _VQAConfig *, VQAHandle **vqa);
+int32_t VQA_Open(char const *, _VQAConfig *, VQAHandle **vqa);
 void VQA_Free(VQAHandle *vqa);
 void VQA_Close(VQAHandle *vqa);
-long VQA_Play(VQAHandle *vqa, long, int flags);
-long VQA_SeekFrame(VQAHandle *vqa, long framenum, long fromwhere);
-long VQA_SetStop(VQAHandle *vqa, long stop);
-long VQA_SetLoop(VQAHandle *vqa, int id, int iterations, int mode);
-long VQA_SetLoop_Internal(VQAHandle *vqa, int start, int end, int iterations, int mode);
+int32_t VQA_Play(VQAHandle *vqa, int32_t, int flags);
+int32_t VQA_SeekFrame(VQAHandle *vqa, int32_t framenum, int32_t fromwhere);
+int32_t VQA_SetStop(VQAHandle *vqa, int32_t stop);
+int32_t VQA_SetLoop(VQAHandle *vqa, int id, int iterations, int mode);
+int32_t VQA_SetLoop_Internal(VQAHandle *vqa, int start, int end, int iterations, int mode);
 
-long VQA_SetUnVQ(VQAHandle *vqa, UNVQ_FUNC unvq1, UNVQ_FUNC unvq2);
+int32_t VQA_SetUnVQ(VQAHandle *vqa, UNVQ_FUNC unvq1, UNVQ_FUNC unvq2);
 
-long VQA_Set_DrawBuffer(VQAHandle *vqa, unsigned char *buffer, unsigned long width, unsigned long height, long xpos, long ypos);
-long VQA_ResetLastFrameNum(VQAHandle *vqa);
+int32_t VQA_Set_DrawBuffer(VQAHandle *vqa, unsigned char *buffer, uint32_t width, uint32_t height, int32_t xpos, int32_t ypos);
+int32_t VQA_ResetLastFrameNum(VQAHandle *vqa);
 
 /* Information/statistics access routines. */
-long VQA_GetBlockInfo(VQAHandle *vqa, long & blockw, long & blockh, long & clrmode);
+int32_t VQA_GetBlockInfo(VQAHandle *vqa, int32_t & blockw, int32_t & blockh, int32_t & clrmode);
 
 #endif /* VQAPLAY_H */
 

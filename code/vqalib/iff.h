@@ -41,9 +41,9 @@
  * type - Form type (IE: "ILBM")
  */
 typedef struct _FormHeader {
-	long id;
-	long size;
-	long type;
+	int32_t id;
+	int32_t size;
+	int32_t type;
 } FormHeader;
 
 /* Context - Structure associated with chunks.
@@ -53,9 +53,9 @@ typedef struct _FormHeader {
  * scan - Bytes read/written.
  */
 typedef struct _Context {
-	long id;
-	long size;
-	long scan;
+	int32_t id;
+	int32_t size;
+	int32_t scan;
 } Context;
 
 /* IFFHandle - Structure associated with an active IFF read\write session.
@@ -67,10 +67,10 @@ typedef struct _Context {
  * cn    - Context of current chunk.
  */
 typedef struct _IFFHandle {
-	long       fh;
-	long       flags;
+	int32_t       fh;
+	int32_t       flags;
 	FormHeader form;
-	long       scan;
+	int32_t       scan;
 	Context    cn;
 } IFFHandle;
 
@@ -96,10 +96,10 @@ typedef struct _IFFHandle {
 #define IFFERR_NOMEM -4
 
 /* Macros to make things easier. */
-#define REVERSE_LONG(id) (unsigned long)((((unsigned long)(id)>>24) \
-		&0x000000FFL)|(((unsigned long)(id)>>8) \
-		&0x0000FF00L)|(((unsigned long)(id)<<8) \
-		&0x00FF0000L)|(((unsigned long)(id)<<24)&0xFF000000L))
+#define REVERSE_LONG(id) (uint32_t)((((uint32_t)(id)>>24) \
+		&0x000000FFL)|(((uint32_t)(id)>>8) \
+		&0x0000FF00L)|(((uint32_t)(id)<<8) \
+		&0x00FF0000L)|(((uint32_t)(id)<<24)&0xFF000000L))
 
 #define REVERSE_WORD(id) ((unsigned short)((((unsigned short)(id)<<8) \
 		&0x00FF00)|(((unsigned short)(id)>>8)&0x0FF)))
@@ -109,8 +109,8 @@ typedef struct _IFFHandle {
 #define ALIGNUP(p, size) ((p + (size - 1)) & ~(size - 1))
 
 #ifndef MAKE_ID
-#define MAKE_ID(a,b,c,d) ((long)((long)(d)<<24)|((long)(c)<<16)| \
-		((long)(b)<<8)|(long)(a))
+#define MAKE_ID(a,b,c,d) ((int32_t)((int32_t)(d)<<24)|((int32_t)(c)<<16)| \
+		((int32_t)(b)<<8)|(int32_t)(a))
 #endif
 
 /* Universal IFF identifiers */
@@ -120,19 +120,19 @@ typedef struct _IFFHandle {
 #define ID_NULL MAKE_ID(' ',' ',' ',' ')
 
 /* Prototypes */
-IFFHandle *OpenIFF(char *, long);
+IFFHandle *OpenIFF(char *, int32_t);
 void CloseIFF(IFFHandle *);
-long ReadForm(IFFHandle *, FormHeader *);
-long WriteForm(IFFHandle *, FormHeader *);
-long ReadChunkHeader(IFFHandle *);
-long WriteChunkHeader(IFFHandle *, long, long);
-long WriteChunk(IFFHandle *, long, char *, long);
-long WriteChunkBytes(IFFHandle *, char *, long);
-long ReadChunkBytes(IFFHandle *, char *, long);
-long SkipChunkBytes(IFFHandle *, long);
-long FindChunk(IFFHandle *, long);
-char *IDtoStr(long, char *);
-long CurrentFilePos(IFFHandle *);
+int32_t ReadForm(IFFHandle *, FormHeader *);
+int32_t WriteForm(IFFHandle *, FormHeader *);
+int32_t ReadChunkHeader(IFFHandle *);
+int32_t WriteChunkHeader(IFFHandle *, int32_t, int32_t);
+int32_t WriteChunk(IFFHandle *, int32_t, char *, int32_t);
+int32_t WriteChunkBytes(IFFHandle *, char *, int32_t);
+int32_t ReadChunkBytes(IFFHandle *, char *, int32_t);
+int32_t SkipChunkBytes(IFFHandle *, int32_t);
+int32_t FindChunk(IFFHandle *, int32_t);
+char *IDtoStr(int32_t, char *);
+int32_t CurrentFilePos(IFFHandle *);
 
 #endif /* VQMIFF_H */
 

@@ -21,17 +21,17 @@ struct AhandleInitParams
 	unsigned short SampleRate;
 	unsigned char Channels;
 	unsigned char BitsPerSample;
-	unsigned long Flags;
+	uint32_t Flags;
 	void * Callback1;
 	void * Callback2;
 };
 
-typedef long (__cdecl * AHANDLE_CALLBACK_1)(VQAHandle * vqa);
-typedef long (__cdecl * AHANDLE_CALLBACK_2)(VQAHandle * vqa, void * buffer);
+typedef int32_t (__cdecl * AHANDLE_CALLBACK_1)(VQAHandle * vqa);
+typedef int32_t (__cdecl * AHANDLE_CALLBACK_2)(VQAHandle * vqa, void * buffer);
 
-unsigned long __cdecl Simple_Timer_Callback_Audio_Handler(VQAHandle * vqa);
-unsigned long __cdecl Timer_Callback_Audio_Handler(VQAHandle * vqa);
+uint32_t __cdecl Simple_Timer_Callback_Audio_Handler(VQAHandle * vqa);
+uint32_t __cdecl Timer_Callback_Audio_Handler(VQAHandle * vqa);
 
-long __cdecl Lock_Audio_Handler(void);
-long __cdecl Unlock_Audio_Handler(void);
-intptr_t __cdecl Stream_Audio_Handler(VQAHandle * vqa, long action, void * buffer, long nbytes);
+int32_t __cdecl Lock_Audio_Handler(void);
+int32_t __cdecl Unlock_Audio_Handler(void);
+intptr_t __cdecl Stream_Audio_Handler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes);

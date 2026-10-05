@@ -49,10 +49,10 @@
 #include	<string.h>
 
 
-intptr_t __cdecl Disk_VQA_Stream_Handler(VQAHandle *vqa, long action, void *buffer, long nbytes)
+intptr_t __cdecl Disk_VQA_Stream_Handler(VQAHandle *vqa, int32_t action, void *buffer, int32_t nbytes)
 {
-	long fh;
-	long error = 0;
+	int32_t fh;
+	int32_t error = 0;
 	int temp;
 
 	fh = ((VQAHandleP*)vqa)->Config.StreamFileHandle;
@@ -152,9 +152,9 @@ intptr_t __cdecl Disk_VQA_Stream_Handler(VQAHandle *vqa, long action, void *buff
 
 
 
-intptr_t __cdecl Memory_VQA_Stream_Handler(VQAHandle *vqa, long action, void *buffer, long nbytes)
+intptr_t __cdecl Memory_VQA_Stream_Handler(VQAHandle *vqa, int32_t action, void *buffer, int32_t nbytes)
 {
-	long error = 0;
+	int32_t error = 0;
 	int p;
 	int bytes;
 	VQAHandleP *vqap = (VQAHandleP *)vqa;

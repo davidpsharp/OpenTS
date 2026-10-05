@@ -110,10 +110,10 @@ static void StartAddr(void)
 *
 ****************************************************************************/
 
-long VQA_OpenAudio(VQAHandleP *vqap)
+int32_t VQA_OpenAudio(VQAHandleP *vqap)
 {
 	VQAAudio *audio;
-	long          rc;
+	int32_t          rc;
 
 	/* Dereference data memebers for quicker access. */
 	audio = &vqap->Audio;
@@ -135,7 +135,7 @@ long VQA_OpenAudio(VQAHandleP *vqap)
 	params.Callback1 = (void *)VQA_AudioFillCallback;
 	params.Callback2 = (void *)VQA_AudioDoneCallback;
 
-	rc = (long)vqap->Config.AudioHandler((VQAHandle *)vqap, VQAAUDIO_OPEN, &params, sizeof(params));
+	rc = (int32_t)vqap->Config.AudioHandler((VQAHandle *)vqap, VQAAUDIO_OPEN, &params, sizeof(params));
 	if (rc >= VQAERR_OK || rc == VQAERR_NONE) {
 
 		/* Lock the memory occupied by this module. */
@@ -288,19 +288,19 @@ void VQA_StopAudio(VQAHandleP *vqap)
 *
 ****************************************************************************/
 
-long CopyAudio(VQAHandleP *vqap)
+int32_t CopyAudio(VQAHandleP *vqap)
 {
 	VQAAudio  *audio;
 	VQAConfig *config;
 	VQALoader *loader;
 
-	unsigned long startblock;
-	unsigned long endblock;
-	unsigned long len1,len2;
-	unsigned long i;
+	uint32_t startblock;
+	uint32_t endblock;
+	uint32_t len1,len2;
+	uint32_t i;
 
 	unsigned char *tempbuf;
-	unsigned long tempbuflen;
+	uint32_t tempbuflen;
 
 	/* Dereference commonly used data members for quicker access. */
 	audio = &vqap->Audio;
@@ -399,7 +399,7 @@ long CopyAudio(VQAHandleP *vqap)
 }
 
 
-long __cdecl VQA_AudioFillCallback(VQAHandleP *vqap)
+int32_t __cdecl VQA_AudioFillCallback(VQAHandleP *vqap)
 {
 	VQAAudio *audio;
 	VQAConfig *config;
@@ -407,17 +407,17 @@ long __cdecl VQA_AudioFillCallback(VQAHandleP *vqap)
 	audio = &vqap->Audio;
 	config = &vqap->Config;
 
-	long size = config->HMIBufSize;
+	int32_t size = config->HMIBufSize;
 
 	if (audio->Flags & VQAAUDF_ISDONE) {
 		return(0);
 	}
 
-	long pos = audio->BufferPosition;
-	unsigned long block = audio->Block1;
+	int32_t pos = audio->BufferPosition;
+	uint32_t block = audio->Block1;
 
 	if (config->OptionFlags & VQAOPTF_WAITFILL) {
-		long nblock = block + 1;
+		int32_t nblock = block + 1;
 		if ((unsigned)nblock >= audio->NumAudBlocks) {
 			nblock = 0;
 		}
@@ -436,7 +436,7 @@ long __cdecl VQA_AudioFillCallback(VQAHandleP *vqap)
 		}
 		audio->BlockRepeats[block] = 0;
 		block++;
-		long npos = pos + size;
+		int32_t npos = pos + size;
 		if (npos >= config->AudioBufSize) {
 			npos = 0;
 			block = 0;
@@ -485,11 +485,11 @@ long __cdecl VQA_AudioFillCallback(VQAHandleP *vqap)
 }
 
 
-long __cdecl VQA_AudioDoneCallback(VQAHandleP *vqap, void *buffer)
+int32_t __cdecl VQA_AudioDoneCallback(VQAHandleP *vqap, void *buffer)
 {
 	VQAConfig *config;
 	VQAAudio *audio;
-	unsigned long  block;
+	uint32_t  block;
 
 	audio = &vqap->Audio;
 	config = &vqap->Config;

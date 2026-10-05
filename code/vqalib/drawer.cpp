@@ -74,27 +74,27 @@
 #include    "../lcw.h"
 
 //forward declarations
-_STATIC long Select_Frame(VQAHandleP *vqap);
+_STATIC int32_t Select_Frame(VQAHandleP *vqap);
 _STATIC void Prepare_Frame(VQAHandleP *vqap);
 
-long DrawFrame_MCGABuf(VQAHandle *vqa);
-long PageFlip_MCGABuf(VQAHandle *vqa);
-long DrawFrame_MCGA(VQAHandle *vqa);
-long PageFlip_MCGA(VQAHandle *vqa);
+int32_t DrawFrame_MCGABuf(VQAHandle *vqa);
+int32_t PageFlip_MCGABuf(VQAHandle *vqa);
+int32_t DrawFrame_MCGA(VQAHandle *vqa);
+int32_t PageFlip_MCGA(VQAHandle *vqa);
 
 void __cdecl UnVQ_Nop(uint8_t *codebook, uint8_t *pointers, uint8_t *buffer, size_t blocksperrow, size_t numrows, size_t bufwidth);
-long PageFlip_Nop(VQAHandle *vqa);
+int32_t PageFlip_Nop(VQAHandle *vqa);
 
-void VQA_SetTimer(VQAHandleP *vqap, long time);
-void VQA_StepTimer(VQAHandleP *vqap, long step);
-unsigned long VQA_GetTime(VQAHandleP *vqap);
-_STATIC long VQA_SetCurrentFrameAsLast(VQAHandleP *vqap);
+void VQA_SetTimer(VQAHandleP *vqap, int32_t time);
+void VQA_StepTimer(VQAHandleP *vqap, int32_t step);
+uint32_t VQA_GetTime(VQAHandleP *vqap);
+_STATIC int32_t VQA_SetCurrentFrameAsLast(VQAHandleP *vqap);
 _STATIC void VQA_SetPreviousFrameNode(VQAHandleP *vqap);
-_STATIC long VQA_CalcFramesSinceDrawn(VQAHandleP *vqap);
+_STATIC int32_t VQA_CalcFramesSinceDrawn(VQAHandleP *vqap);
 
-_STATIC long VQA_ComputeDesiredFrame(VQAHandleP *vqap, VQAConfig *config, VQADrawer *drawer, VQAFrameNode *frame, unsigned long time);
+_STATIC int32_t VQA_ComputeDesiredFrame(VQAHandleP *vqap, VQAConfig *config, VQADrawer *drawer, VQAFrameNode *frame, uint32_t time);
 
-void VQA_DispatchFrameChunks(VQAHandleP *vqap, long frame);
+void VQA_DispatchFrameChunks(VQAHandleP *vqap, int32_t frame);
 
 /// <summary>
 /// Invalidates the drawer's record of the last frame drawn.
@@ -103,7 +103,7 @@ void VQA_DispatchFrameChunks(VQAHandleP *vqap, long frame);
 /// no frame has been drawn yet.
 /// </summary>
 /// <returns>Returns with VQAERR_NONE.</returns>
-long VQA_ResetLastFrameNum(VQAHandle *vqa)
+int32_t VQA_ResetLastFrameNum(VQAHandle *vqa)
 {
 	VQAHandleP *vqap;
 	VQADrawer *drawer;
@@ -139,13 +139,13 @@ long VQA_ResetLastFrameNum(VQAHandle *vqa)
 *
 ****************************************************************************/
 
-long VQA_Configure_Drawer(VQAHandleP *vqap)
+int32_t VQA_Configure_Drawer(VQAHandleP *vqap)
 {
 	VQAConfig *config;
 	VQAHeader *header;
 	VQADrawer *drawer;
-	long      origin;
-	long      blkdim;
+	int32_t      origin;
+	int32_t      blkdim;
 
 	/* Dereference commonly used data members for quicker access. */
 	drawer = &vqap->Drawer;
@@ -266,14 +266,14 @@ long VQA_Configure_Drawer(VQAHandleP *vqap)
 *
 ****************************************************************************/
 
-STATIC long Select_Frame(VQAHandleP *vqap)
+STATIC int32_t Select_Frame(VQAHandleP *vqap)
 {
 	VQADrawer    *drawer;
 	VQAConfig    *config;
 	VQAFrameNode *curframe;
-	long         desiredframe;
+	int32_t         desiredframe;
 	// MEG 11.29.95 - changed from long to unsigned long
-	unsigned long curtime;
+	uint32_t curtime;
 
 	/* Dereference commonly used data members for quicker access. */
 	config = &vqap->Config;
@@ -326,7 +326,7 @@ STATIC long Select_Frame(VQAHandleP *vqap)
 //	desiredframe = ((curtime * config->FrameRate) / VQA_TIMETICKS);
 	// MEG MOD 06.22.95 - Should look for the desired frame to draw, not load,
 	// right?
-	long endtime = 0;
+	int32_t endtime = 0;
 	if ( !(drawer->Flags & VQADRWF_STEP)) {
 		endtime = drawer->LastFrameNum + 1;
 	} else {
@@ -362,7 +362,7 @@ STATIC long Select_Frame(VQAHandleP *vqap)
 	}
 
 	/* Limit the number of frames that can be skipped in one shot. */
-	long maxskip = (config->FrameRate / 3) - 1;
+	int32_t maxskip = (config->FrameRate / 3) - 1;
 	if (maxskip < 0) {
 		maxskip = 0;
 	}
@@ -478,11 +478,11 @@ STATIC long Select_Frame(VQAHandleP *vqap)
 /// cache that the loader fills.
 /// </summary>
 /// <param name="frame">The frame number whose chunks are to be dispatched.</param>
-void VQA_DispatchFrameChunks(VQAHandleP *vqap, long frame)
+void VQA_DispatchFrameChunks(VQAHandleP *vqap, int32_t frame)
 {
-	unsigned long chunkid;
-	unsigned long count1;
-	unsigned long count2;
+	uint32_t chunkid;
+	uint32_t count1;
+	uint32_t count2;
 	int i;
 	int j;
 
@@ -529,14 +529,14 @@ void VQA_DispatchFrameChunks(VQAHandleP *vqap, long frame)
 /// </summary>
 /// <param name="time">The playback time to evaluate, in VQA_TIMETICKS.</param>
 /// <returns>Returns with the frame number that should be drawn.</returns>
-long VQA_ComputeDesiredFrame(VQAHandleP *vqap, VQAConfig *config, VQADrawer *drawer, VQAFrameNode *frame, unsigned long time)
+int32_t VQA_ComputeDesiredFrame(VQAHandleP *vqap, VQAConfig *config, VQADrawer *drawer, VQAFrameNode *frame, uint32_t time)
 {
 	VQAHeader *header;
-	long frame_rate;
-	long frame_num;
-	long result;
+	int32_t frame_rate;
+	int32_t frame_num;
+	int32_t result;
 	bool crossed_loop;
-	long loop_end;
+	int32_t loop_end;
 
 	header = &vqap->Header;
 
@@ -626,13 +626,13 @@ long VQA_ComputeDesiredFrame(VQAHandleP *vqap, VQAConfig *config, VQADrawer *dra
 /// This is what limits how many frames may be skipped in one go.
 /// </summary>
 /// <returns>Returns with the number of frames elapsed since the last draw.</returns>
-long VQA_CalcFramesSinceDrawn(VQAHandleP *vqap)
+int32_t VQA_CalcFramesSinceDrawn(VQAHandleP *vqap)
 {
 	VQAConfig * config;
 	VQADrawer * drawer;
 	VQAFrameNode *curframe;
-	long cur;
-	long loop_end;
+	int32_t cur;
+	int32_t loop_end;
 	int to_loop_end;
 	int from_loop_start;
 	int fallback;
@@ -669,7 +669,7 @@ long VQA_CalcFramesSinceDrawn(VQAHandleP *vqap)
 /// notion of playback progress once a frame has been committed.
 /// </summary>
 /// <returns>Returns with VQAERR_NONE.</returns>
-long VQA_SetCurrentFrameAsLast(VQAHandleP *vqap)
+int32_t VQA_SetCurrentFrameAsLast(VQAHandleP *vqap)
 {
 	VQADrawer * drawer;
 
@@ -818,8 +818,8 @@ void VQA_UnVQFrame(VQAHandleP *vqap, VQAFrameNode *frame)
 		}
 
 		unsigned char * buffer = buf + drawer->ScreenOffset;
-		long blocksperrow = drawer->BlocksPerRow;
-		long numrows = drawer->NumRows;
+		int32_t blocksperrow = drawer->BlocksPerRow;
+		int32_t numrows = drawer->NumRows;
 		unsigned char * codebook;
 		unsigned char * pointers;
 
@@ -894,12 +894,12 @@ void VQA_UnVQFrame(VQAHandleP *vqap, VQAFrameNode *frame)
 *
 ****************************************************************************/
 
-long DrawFrame_MCGA(VQAHandle *vqa)
+int32_t DrawFrame_MCGA(VQAHandle *vqa)
 {
 	VQAHandleP *vqap;
 	VQADrawer    *drawer;
 	VQAFrameNode *curframe;
-	long         rc;
+	int32_t         rc;
 
 	/* Dereference commonly used data members for quicker access */
 	vqap = (VQAHandleP *)vqa;
@@ -953,15 +953,15 @@ long DrawFrame_MCGA(VQAHandle *vqa)
 *
 ****************************************************************************/
 
-STATIC long PageFlip_MCGA(VQAHandle *vqa)
+STATIC int32_t PageFlip_MCGA(VQAHandle *vqa)
 {
 	VQAHandleP *vqap;
 	VQADrawer     *drawer;
 	VQAFrameNode  *curframe;
 	VQAConfig     *config;
 	unsigned char *pal;
-	long          palsize;
-	long          slowpal;
+	int32_t          palsize;
+	int32_t          slowpal;
 
 	/* Dereference commonly used data members for quicker access. */
 	vqap = (VQAHandleP *)vqa;
@@ -986,7 +986,7 @@ STATIC long PageFlip_MCGA(VQAHandle *vqa)
 
 			/* Notify the client of the palette change. */
 			if (config->EventHandler != NULL) {
-				config->EventHandler(vqa, VQAEVENT_PALETTE, (void *)pal, (long)palsize);
+				config->EventHandler(vqa, VQAEVENT_PALETTE, (void *)pal, (int32_t)palsize);
 			}
 		}
 		else if (drawer->Flags & VQADRWF_SETPAL) {
@@ -995,7 +995,7 @@ STATIC long PageFlip_MCGA(VQAHandle *vqa)
 
 			/* Notify the client of the palette change. */
 			if (config->EventHandler != NULL) {
-				config->EventHandler(vqa, VQAEVENT_PALETTE, (void *)drawer->Palette_24, (long)drawer->CurPalSize);
+				config->EventHandler(vqa, VQAEVENT_PALETTE, (void *)drawer->Palette_24, (int32_t)drawer->CurPalSize);
 			}
 		}
 	}
@@ -1054,9 +1054,9 @@ STATIC long PageFlip_MCGA(VQAHandle *vqa)
 *
 ****************************************************************************/
 
-STATIC long DrawFrame_MCGABuf(VQAHandle *vqa)
+STATIC int32_t DrawFrame_MCGABuf(VQAHandle *vqa)
 {
-	long rc;
+	int32_t rc;
 	VQAHandleP *vqap;
 	VQADrawer *drawer;
 	VQAFrameNode *curframe;
@@ -1112,15 +1112,15 @@ STATIC long DrawFrame_MCGABuf(VQAHandle *vqa)
 *
 ****************************************************************************/
 
-STATIC long PageFlip_MCGABuf(VQAHandle *vqa)
+STATIC int32_t PageFlip_MCGABuf(VQAHandle *vqa)
 {
 	VQAHandleP *vqap;
 	VQADrawer *drawer;
 	VQAFrameNode *curframe;
 	VQAConfig *config;
 	unsigned char *pal;
-	long palsize;
-	long slowpal;
+	int32_t palsize;
+	int32_t slowpal;
 
 	/* Derefernce commonly used data members for quicker access. */
 	vqap = (VQAHandleP *)vqa;
@@ -1150,7 +1150,7 @@ STATIC long PageFlip_MCGABuf(VQAHandle *vqa)
 
 			/* Notify the client of the palette change. */
 			if (config->EventHandler != NULL) {
-				config->EventHandler(vqa, VQAEVENT_PALETTE, (void *)pal, (long)palsize);
+				config->EventHandler(vqa, VQAEVENT_PALETTE, (void *)pal, (int32_t)palsize);
 			}
 		} else if (drawer->Flags & VQADRWF_SETPAL) {
 			drawer->Flags &= ~VQADRWF_SETPAL;
@@ -1158,7 +1158,7 @@ STATIC long PageFlip_MCGABuf(VQAHandle *vqa)
 
 			if (config->EventHandler != NULL) {
 				config->EventHandler(vqa, VQAEVENT_PALETTE, (void *)drawer->Palette_24,
-						(long)drawer->CurPalSize);
+						(int32_t)drawer->CurPalSize);
 			}
 		}
 	}
@@ -1238,7 +1238,7 @@ STATIC void __cdecl UnVQ_Nop(uint8_t *codebook, uint8_t *pointers,
 *
 ****************************************************************************/
 
-STATIC long PageFlip_Nop(VQAHandle *vqa)
+STATIC int32_t PageFlip_Nop(VQAHandle *vqa)
 {
 	//shut up compiler warnings
 	vqa = vqa;

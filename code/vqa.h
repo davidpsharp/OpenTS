@@ -86,9 +86,9 @@ enum {
 //==========================================================================
 
 struct VQACacheHeader {
-	unsigned long	file_size;
-	unsigned long	file_offset;
-	unsigned long	file_buffer_pos;
+	uint32_t	file_size;
+	uint32_t	file_offset;
+	uint32_t	file_buffer_pos;
 	unsigned char	*file_buffer;
 };
 
@@ -136,7 +136,7 @@ class VQAClass
 		void Close_And_Free_VQA(void);
 		void Reset_VQA(void);
 		bool Set_Draw_Buffer(void * buffer, int buffer_width, int buffer_height, int x_offset = 0, int y_offset = 0);
-		long Cache_VQA(unsigned long bytes_to_cache);
+		int32_t Cache_VQA(uint32_t bytes_to_cache);
 
 		int Get_Desired_Color_Mode(void);
 		void Set_Primary_Color_Mode(int mode);
@@ -156,9 +156,9 @@ class VQAClass
 		bool Is_Paused(void) const { return(IsPaused); }
 		void Set_Pause_On_Focus_Loss(bool pause) { PauseOnFocusLoss = pause; }
 
-		long CCFileHandler(long action, void * buffer, long nbytes);
-		long MixFileHandler(long action, void * buffer, long nbytes);
-		long CacheHandler(long action, void * buffer, long nbytes);
+		int32_t CCFileHandler(int32_t action, void * buffer, int32_t nbytes);
+		int32_t MixFileHandler(int32_t action, void * buffer, int32_t nbytes);
+		int32_t CacheHandler(int32_t action, void * buffer, int32_t nbytes);
 
 		/*=========================================================================*/
 		/* Private functions.                                                      */

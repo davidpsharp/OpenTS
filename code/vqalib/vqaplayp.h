@@ -108,8 +108,8 @@ extern char ReqTag[];
  * size - Size of chunk.
  */
 typedef struct _ChunkHeader {
-	unsigned long id;
-	unsigned long size;
+	uint32_t id;
+	uint32_t size;
 } ChunkHeader;
 
 
@@ -126,8 +126,8 @@ typedef struct _ZAPHeader {
 } ZAPHeader;
 
 typedef struct _VQAClipper {
-	unsigned long Width;
-	unsigned long Height;
+	uint32_t Width;
+	uint32_t Height;
 } VQAClipper;
 
 
@@ -149,8 +149,8 @@ typedef struct _VQACBNode {
 	unsigned char     *Buffer;
 	struct _VQACBNode *Next;
 	struct _VQACBNode *Prev;
-	unsigned long     Flags;
-	unsigned long     CBOffset;
+	uint32_t     Flags;
+	uint32_t     CBOffset;
 	int               CodebookSize;
 } VQACBNode;
 
@@ -188,12 +188,12 @@ typedef struct _VQAFrameNode {
 	unsigned char        *Palette;
 	struct _VQAFrameNode *Next;
 	struct _VQAFrameNode *Prev;
-	unsigned long        Flags;
-	unsigned long        PrevFlags;
-	long                 FrameNum;
-	long                 PtrOffset;
-	long                 PalOffset;
-	long                 PaletteSize;
+	uint32_t        Flags;
+	uint32_t        PrevFlags;
+	int32_t                 FrameNum;
+	int32_t                 PtrOffset;
+	int32_t                 PalOffset;
+	int32_t                 PaletteSize;
 } VQAFrameNode;
 
 /* FrameNode flags */
@@ -245,16 +245,16 @@ typedef struct _VQALoader {
 	VQACBNode    *FullCB;
 	VQACBNode    *PrevCB;
 	VQAFrameNode *CurFrame;
-	long         NumPartialCB;
-	long         PartialCBSize;
+	int32_t         NumPartialCB;
+	int32_t         PartialCBSize;
 	int          CBSize;
-	long         CurFrameNum;
+	int32_t         CurFrameNum;
 //	long         LastCBFrame;
-	long         LastFrameNum;
-	long         WaitsOnDrawer;
-	long         WaitsOnAudio;
-	long         FrameSize;
-	long         MaxFrameSize;
+	int32_t         LastFrameNum;
+	int32_t         WaitsOnDrawer;
+	int32_t         WaitsOnAudio;
+	int32_t         FrameSize;
+	int32_t         MaxFrameSize;
 	ChunkHeader  CurChunkHdr;
 } VQALoader;
 
@@ -289,29 +289,29 @@ typedef struct _VQALoader {
  */
 typedef struct _VQADrawer {
 	VQAFrameNode  *CurFrame;
-	unsigned long Flags;
+	uint32_t Flags;
 //	DisplayInfo   *Display;
 	unsigned char *ImageBuf;
-	long          ImageWidth;
-	long          ImageHeight;
-	long          X1,Y1;//,X2,Y2;
-	long          ScreenOffset;
-	long          CurPalSize;
+	int32_t          ImageWidth;
+	int32_t          ImageHeight;
+	int32_t          X1,Y1;//,X2,Y2;
+	int32_t          ScreenOffset;
+	int32_t          CurPalSize;
 	unsigned char Palette_24[768];
 	unsigned char Palette_15[512];
-	long          BlocksPerRow;
-	long          NumRows;
-	long          NumBlocks;
+	int32_t          BlocksPerRow;
+	int32_t          NumRows;
+	int32_t          NumBlocks;
 //	long          MaskStart;
 //	long          MaskWidth;
 //	long          MaskHeight;
 //	long          LastTime;
 //	long          LastFrame;
-	long          LastFrameNum;
-	long          DesiredFrame;
+	int32_t          LastFrameNum;
+	int32_t          DesiredFrame;
 //	long          NumSkipped;
 //	long          WaitsOnFlipper;
-	long          WaitsOnLoader;
+	int32_t          WaitsOnLoader;
 } VQADrawer;
 
 /* Drawer flags */
@@ -332,7 +332,7 @@ typedef struct _VQADrawer {
  */
 typedef struct _VQAFlipper {
 	VQAFrameNode *CurFrame;
-	long         LastFrameNum;
+	int32_t         LastFrameNum;
 } VQAFlipper;
 
 
@@ -381,25 +381,25 @@ typedef struct _VQAFlipper {
  */
 typedef struct _VQAAudio {
 	unsigned char      *Buffer;
-	unsigned long      AudBufPos;
+	uint32_t      AudBufPos;
 	bool               *IsLoaded;
 	short              *BlockRepeats;
-	unsigned long      NumAudBlocks;
-	unsigned long      Block1;
-	unsigned long      Block2;
+	uint32_t      NumAudBlocks;
+	uint32_t      Block1;
+	uint32_t      Block2;
 	unsigned char      *TempBuf;
-	unsigned long      BufferOffset;
-	unsigned long      TempBufLen;
-	unsigned long      TempBufSize;
+	uint32_t      BufferOffset;
+	uint32_t      TempBufLen;
+	uint32_t      TempBufSize;
 	void              *HMIBuffer;
-	unsigned long      Flags;
-	unsigned long      PlayPosition;
-	unsigned long      BufferPosition;
+	uint32_t      Flags;
+	uint32_t      PlayPosition;
+	uint32_t      BufferPosition;
 
 	/// Unused
 	int                field_3C;
 
-	unsigned long      BytesPerSec;
+	uint32_t      BytesPerSec;
 	VQASOS             ADPCM_Info;
 } VQAAudio;
 
@@ -446,8 +446,8 @@ typedef struct _VQAAudio {
 #define VQAABUFF_ALTLOOP	(1<<2)	// use alternative loop buffer
 
 // Draw_Frame and Page_Flip functions must be this type
-typedef long (*VQAD_FUNC)(VQAHandle *vqa);
-typedef long (*VQAP_FUNC)(VQAHandle *vqa);
+typedef int32_t (*VQAD_FUNC)(VQAHandle *vqa);
+typedef int32_t (*VQAP_FUNC)(VQAHandle *vqa);
 
 struct VQA_Array_Data {
 	void			**Ptr;
@@ -457,7 +457,7 @@ struct VQA_Array_Data {
 struct VQALoopInfo {
 	struct HEADER {
 		unsigned short Count;
-		unsigned long Flags;
+		uint32_t Flags;
 		unsigned short Pad;
 	};
 	HEADER Header;
@@ -476,7 +476,7 @@ struct VQALoopInfo {
 struct VQAPaletteInfo {
 	struct HEADER {
 		unsigned short Count;
-		unsigned long Flags;
+		uint32_t Flags;
 		unsigned short Pad;
 	};
 	HEADER Header;
@@ -506,8 +506,8 @@ struct VQACodebookInfo {
 
 struct VQAMFCInfo {
 	struct HEADER {
-		unsigned long StaticCount;
-		unsigned long Count;
+		uint32_t StaticCount;
+		uint32_t Count;
 
 		/// Unused
 		int     field_8;
@@ -522,13 +522,13 @@ struct VQAMFCInfo {
 		 */
 		int     KeyFrame;
 
-		unsigned long ChunkID;
+		uint32_t ChunkID;
 		char    Pad[0x10];
 	};
 	DATA *StaticData;
 
 	struct TABLE {
-		unsigned long ChunkID;
+		uint32_t ChunkID;
 
 		/*
 		 * The period of this chunk type, in frames. It divides the frame buffer
@@ -548,7 +548,7 @@ struct VQAMFCInfo {
 	TABLE *Table;
 
 	struct DATA2 {
-		unsigned long Count;
+		uint32_t Count;
 
 		/*
 		 * The ring buffer write cursor. It picks the slot the next chunk of this
@@ -558,8 +558,8 @@ struct VQAMFCInfo {
 
 		struct DATA {
 			char    *Buffer;
-			unsigned long Size;
-			long Frame;
+			uint32_t Size;
+			int32_t Frame;
 		};
 		DATA *Data;
 	};
@@ -568,7 +568,7 @@ struct VQAMFCInfo {
 
 struct VQAMSCInfo {
 	struct HEADER {
-		unsigned long Count;
+		uint32_t Count;
 
 		/// Unused
 		int     field_4;
@@ -576,7 +576,7 @@ struct VQAMSCInfo {
 	HEADER Header;
 
 	struct TABLE {
-		unsigned long ChunkID;
+		uint32_t ChunkID;
 
 		/*
 		 * The size in bytes of one entry's buffer. Note that this sits one slot
@@ -591,7 +591,7 @@ struct VQAMSCInfo {
 	TABLE *Table;
 
 	struct DATA2 {
-		unsigned long Count;
+		uint32_t Count;
 
 		/*
 		 * The ring buffer write cursor. It picks the slot the next chunk of this
@@ -601,8 +601,8 @@ struct VQAMSCInfo {
 
 		struct DATA {
 			char    *Buffer;
-			unsigned long Size;
-			long Frame;
+			uint32_t Size;
+			int32_t Frame;
 		};
 		DATA *Data;
 	};
@@ -646,7 +646,7 @@ typedef struct _VQAHandleP {
 	void *			ImageBuf;
 	unsigned short	ColorMode;
 	unsigned short	FrameRate;
-	long			NumFrames;
+	int32_t			NumFrames;
 	int				LoadedFrames;
 	int				DrawnFrames;
 	int				SkippedFrames;
@@ -704,8 +704,8 @@ typedef struct _VQAHandleP {
 	/// Unused
 	int				field_14C;
 
-	unsigned long	Flags;
-	unsigned long	AltBufferFlags;
+	uint32_t	Flags;
+	uint32_t	AltBufferFlags;
 	void *			AltImageBuf;
 	int				AltImageWidth;
 	int				AltImageHeight;
@@ -722,10 +722,10 @@ typedef struct _VQAHandleP {
 	VQAMSCInfo		MSCInfo;
 	VQACodebookInfo CodebookInfo;
 	VQAPaletteInfo	PaletteInfo;
-	long			*Foff;
-	long			Max_CB_Size;
-	long			Max_Ptr_Size;
-	long			Max_Pal_Size;
+	int32_t			*Foff;
+	int32_t			Max_CB_Size;
+	int32_t			Max_Ptr_Size;
+	int32_t			Max_Pal_Size;
 	int				CBBufferSize;
 	int				PtrBufferSize;
 	VQAD_FUNC		Draw_Frame;
@@ -759,33 +759,33 @@ typedef struct _VQAHandleP {
  *-------------------------------------------------------------------------*/
 
 /* Loader/Drawer system. */
-long VQA_LoadFrame(VQAHandle *vqa);
-long VQA_Configure_Drawer(VQAHandleP *vqap);
-long User_Update(VQAHandle *vqa);
+int32_t VQA_LoadFrame(VQAHandle *vqa);
+int32_t VQA_Configure_Drawer(VQAHandleP *vqap);
+int32_t User_Update(VQAHandle *vqa);
 
 /* Timer system. */
-void VQA_SetTimer(VQAHandleP *vqap, long time);
-void VQA_StepTimer(VQAHandleP *vqap, long step);
-unsigned long VQA_GetTime(VQAHandleP *vqap);
-unsigned long VQA_GetMovieTime(VQAHandle *vqa);
+void VQA_SetTimer(VQAHandleP *vqap, int32_t time);
+void VQA_StepTimer(VQAHandleP *vqap, int32_t step);
+uint32_t VQA_GetTime(VQAHandleP *vqap);
+uint32_t VQA_GetMovieTime(VQAHandle *vqa);
 
 /* Audio system. */
 #if(VQAAUDIO_ON)
-long VQA_OpenAudio(VQAHandleP *vqap);
+int32_t VQA_OpenAudio(VQAHandleP *vqap);
 void VQA_CloseAudio(VQAHandleP *vqap);
 void VQA_StartAudio(VQAHandleP *vqap);
 void VQA_PauseAudio(VQAHandleP *vqap);
 void VQA_StopAudio(VQAHandleP *vqap);
-long CopyAudio(VQAHandleP *vqap);
-long __cdecl VQA_AudioFillCallback(VQAHandleP *vqap);
-long __cdecl VQA_AudioDoneCallback(VQAHandleP *vqap, void *);
+int32_t CopyAudio(VQAHandleP *vqap);
+int32_t __cdecl VQA_AudioFillCallback(VQAHandleP *vqap);
+int32_t __cdecl VQA_AudioDoneCallback(VQAHandleP *vqap, void *);
 #endif
 
 /* Debugging system. */
 void VQA_InitMono(VQAHandleP *vqap);
 void VQA_UpdateMono(VQAHandleP *vqap);
 
-long AllocBuffers(VQAHandleP *vqap);
+int32_t AllocBuffers(VQAHandleP *vqap);
 void FreeBuffers(VQAHandleP *vqap);
 
 #endif /* VQAPLAYP_H */

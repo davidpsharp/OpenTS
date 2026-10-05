@@ -17,10 +17,10 @@
 #include	<string.h>
 #include	"vqamem.h"
 
-extern long VQA_Set_DrawBuffer(VQAHandle *vqa, unsigned char *buffer, unsigned long width, unsigned long height, long xpos, long ypos);
+extern int32_t VQA_Set_DrawBuffer(VQAHandle *vqa, unsigned char *buffer, uint32_t width, uint32_t height, int32_t xpos, int32_t ypos);
 
 
-_STATIC void VQA_BufferPerpareLoop(VQAHandleP *vqap, long * needs_start_cb, long * needs_end_cb);
+_STATIC void VQA_BufferPerpareLoop(VQAHandleP *vqap, int32_t * needs_start_cb, int32_t * needs_end_cb);
 
 
 /****************************************************************************
@@ -58,15 +58,15 @@ _STATIC void VQA_BufferPerpareLoop(VQAHandleP *vqap, long * needs_start_cb, long
 *
 ****************************************************************************/
 
-STATIC long AllocBuffers(VQAHandleP *vqap)
+STATIC int32_t AllocBuffers(VQAHandleP *vqap)
 {
-	long needs_start_cb;
-	long needs_end_cb;
+	int32_t needs_start_cb;
+	int32_t needs_end_cb;
 	VQACBNode    *cbnode;
 	VQACBNode    *this_cb;
 	VQAFrameNode *framenode;
 	VQAFrameNode *this_frame;
-	long         i;
+	int32_t         i;
 	VQAConfig    *config;
 	VQAHeader    *header;
 
@@ -104,7 +104,7 @@ STATIC long AllocBuffers(VQAHandleP *vqap)
 	}
 
 	if (config->NumCBBufs <= 0) {
-		long groupsize;
+		int32_t groupsize;
 		if (vqap->CodebookInfo.Header.Count > 0) {
 			groupsize = vqap->CodebookInfo.Header.Groupsize;
 		} else {
@@ -170,7 +170,7 @@ STATIC long AllocBuffers(VQAHandleP *vqap)
 		config->MemoryHandler((VQAHandle*)vqap, VQAMEM_LOCK, cbnode, (sizeof(VQACBNode) + vqap->Max_CB_Size));
 
 		/* Keep count of the memory usage. */
-		vqap->MemUsed += (long)(sizeof(VQACBNode) + vqap->Max_CB_Size);
+		vqap->MemUsed += (int32_t)(sizeof(VQACBNode) + vqap->Max_CB_Size);
 
 		/* Initialize the node */
 		memset(cbnode, 0, sizeof(VQACBNode));
@@ -210,7 +210,7 @@ STATIC long AllocBuffers(VQAHandleP *vqap)
 
 	/* Set maximum vector pointers size (from the largest frame). */
 	{
-		unsigned long maxptr;
+		uint32_t maxptr;
 
 		if (header->MaxFramesize == 0) {
 			maxptr = vqap->PtrBufferSize;
@@ -259,7 +259,7 @@ STATIC long AllocBuffers(VQAHandleP *vqap)
 				+ vqap->Max_Pal_Size);
 
 		/* Keep count of the memory usage. */
-		vqap->MemUsed += (long)(sizeof(VQAFrameNode) + vqap->Max_Ptr_Size
+		vqap->MemUsed += (int32_t)(sizeof(VQAFrameNode) + vqap->Max_Ptr_Size
 				+ vqap->Max_Pal_Size);
 
 		/* Initialize the node */
@@ -439,7 +439,7 @@ STATIC long AllocBuffers(VQAHandleP *vqap)
 	/*-------------------------------------------------------------------------
 	 * ALLOCATE THE FRAME INFORMATION TABLE IF REQUESTED.
 	 *-----------------------------------------------------------------------*/
-	vqap->Foff = (long *)config->MemoryHandler((VQAHandle *)vqap, VQAMEM_ALLOC, NULL, header->Frames * sizeof(*vqap->Foff));
+	vqap->Foff = (int32_t *)config->MemoryHandler((VQAHandle *)vqap, VQAMEM_ALLOC, NULL, header->Frames * sizeof(*vqap->Foff));
 
 	if (vqap->Foff == NULL) {
 		FreeBuffers(vqap);
@@ -450,7 +450,7 @@ STATIC long AllocBuffers(VQAHandleP *vqap)
 	config->MemoryHandler((VQAHandle *)vqap, VQAMEM_LOCK, vqap->Foff, header->Frames * sizeof(*vqap->Foff));
 
 	/* Keep a running total of memory usage. */
-	vqap->MemUsed += (header->Frames * sizeof(long));
+	vqap->MemUsed += (header->Frames * sizeof(int32_t));
 
 	return(VQAERR_NONE);
 }
@@ -485,7 +485,7 @@ STATIC void FreeBuffers(VQAHandleP *vqap)
 	             *cb_next;
 	VQAFrameNode *frame_this,
 	             *frame_next;
-	long         i;
+	int32_t         i;
 
 	VQAAudio *audio;
 	VQAConfig *config;
@@ -625,10 +625,10 @@ STATIC void FreeBuffers(VQAHandleP *vqap)
 		config->MemoryHandler((VQAHandle *)vqap, VQAMEM_FREE, vqap->CodebookInfo.Data, NULL);
 	}
 
-	unsigned long count;
-	unsigned long tablecount;
-	unsigned long k;
-	unsigned long staticcount;
+	uint32_t count;
+	uint32_t tablecount;
+	uint32_t k;
+	uint32_t staticcount;
 
 	///////////////////////////////////////////////////////////////////////////
 	// free msci data
@@ -706,7 +706,7 @@ STATIC void FreeBuffers(VQAHandleP *vqap)
 }
 
 
-long VQA_Configure_Buffer(VQAHandleP *vqap)
+int32_t VQA_Configure_Buffer(VQAHandleP *vqap)
 {
 	unsigned char *buf;
 	int w;
@@ -775,7 +775,7 @@ long VQA_Configure_Buffer(VQAHandleP *vqap)
 }
 
 
-intptr_t __cdecl VQA_Memory_Handler(VQAHandle *vqa, long action, void *buffer, long nbytes)
+intptr_t __cdecl VQA_Memory_Handler(VQAHandle *vqa, int32_t action, void *buffer, int32_t nbytes)
 {
 	intptr_t error = 0;
 
@@ -803,7 +803,7 @@ intptr_t __cdecl VQA_Memory_Handler(VQAHandle *vqa, long action, void *buffer, l
 			break;
 
 		case VQAMEM_QUERYSIZE:
-			*((long *)buffer) = -1;
+			*((int32_t *)buffer) = -1;
 			break;
 
 	}
@@ -820,7 +820,7 @@ intptr_t __cdecl VQA_Memory_Handler(VQAHandle *vqa, long action, void *buffer, l
 /// </summary>
 /// <param name="needs_start_cb">Set to 1 if a loop start needs an extra codebook buffer.</param>
 /// <param name="needs_end_cb">Set to 1 if a loop end needs an extra codebook buffer.</param>
-void VQA_BufferPerpareLoop(VQAHandleP *vqap, long * needs_start_cb, long * needs_end_cb)
+void VQA_BufferPerpareLoop(VQAHandleP *vqap, int32_t * needs_start_cb, int32_t * needs_end_cb)
 {
 	VQALoopInfo::DATA *ldata;
 	VQACodebookInfo::DATA *cdata;

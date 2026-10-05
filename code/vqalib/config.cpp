@@ -185,7 +185,7 @@ void VQA_INIConfig(VQAConfig *config)
 {
 	char *ininame;
 	char buf[80];
-	long i;
+	int32_t i;
 
 	/* Set all Config entries to 0. */
 	memset(config, 0, sizeof(VQAConfig));
