@@ -1071,6 +1071,8 @@ void Emergency_Exit(void)
 
 
 #ifndef _WIN32
+#include "crashreport.h"
+
 /// <summary>
 /// The program entry point outside Windows. It keeps the arguments for Build_Arguments and
 /// runs WinMain, which holds the start-up sequence.
@@ -1078,6 +1080,7 @@ void Emergency_Exit(void)
 int main(int argc, char ** argv)
 {
 	Stack_Prime(STACK_PRIME_MAIN);
+	Crash_Report_Install();
 	PosixArgumentCount = argc;
 	PosixArguments = argv;
 	// OPENTS_FOCUS=1 starts as if the window had the focus, for runs nobody is watching.

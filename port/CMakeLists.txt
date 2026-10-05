@@ -84,6 +84,10 @@ add_subdirectory("${TP}/SDL" SDL EXCLUDE_FROM_ALL)
 file(GLOB LZO_SOURCES "${TP}/lzo/src/*.c")
 add_library(lzo STATIC ${LZO_SOURCES})
 target_include_directories(lzo PUBLIC "${TP}/lzo/include" PRIVATE "${TP}/lzo/src")
+if(RISCOS)
+    # LZO reads unaligned words on any ARMv7, but RISC OS traps unaligned access.
+    target_compile_definitions(lzo PRIVATE LZO_CFG_NO_UNALIGNED=1)
+endif()
 
 add_library(miniaudio STATIC "${TP}/miniaudio-impl.c")
 target_include_directories(miniaudio PUBLIC "${TP}/miniaudio")
@@ -156,6 +160,7 @@ if(RISCOS)
     target_include_directories(OpenTS BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/riscos/include")
     target_sources(OpenTS PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/stack.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/riscos/crash.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/aeabi.c")
 endif()
 

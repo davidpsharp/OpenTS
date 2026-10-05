@@ -94,16 +94,35 @@ static void Init_Locked(void)
 		if (DebugFile == nullptr) {
 			DebugFileName[0] = '\0';
 		}
+#ifdef __riscos__
+		else {
+			fclose(DebugFile);
+			DebugFile = nullptr;
+		}
+#endif
 	}
 }
 
 static void Write_Text_Locked(char const * text, size_t length)
 {
 	fwrite(text, 1, length, stderr);
+#ifdef __riscos__
+	// RISC OS can't read a file another program has open, and a reset loses what an open
+	// file holds, so the log is opened for each write.
+	if (DebugFileName[0] != '\0') {
+		DebugFile = fopen(DebugFileName, "a");
+	}
+#endif
 	if (DebugFile != nullptr) {
 		fwrite(text, 1, length, DebugFile);
 		fflush(DebugFile);
 	}
+#ifdef __riscos__
+	if (DebugFile != nullptr) {
+		fclose(DebugFile);
+		DebugFile = nullptr;
+	}
+#endif
 }
 
 static void Emit(char const * buffer, bool with_prefix)
