@@ -138,6 +138,13 @@ DSurface::DSurface(int width, int height) :
 	info.Masks[1] = 0x07E0;
 	info.Masks[2] = 0x001F;
 
+#ifndef _WIN32
+	// Without GDI the pixels are plain memory, laid out as the DIB section would be.
+	(void)info;
+	Pitch = width * 2;
+	GDIBuffer = calloc((size_t)Pitch * (size_t)height, 1);
+	return;
+#else
 	GDIDC = CreateCompatibleDC(NULL);
 	if (GDIDC == NULL) {
 		return;
@@ -159,6 +166,7 @@ DSurface::DSurface(int width, int height) :
 	} else {
 		Pitch = width * 2;
 	}
+#endif
 }
 
 
@@ -196,6 +204,9 @@ DSurface::~DSurface(void)
 		GDIBitmap = NULL;
 	}
 
+#ifndef _WIN32
+	free(GDIBuffer);
+#endif
 	GDIBuffer = NULL;
 }
 
@@ -489,6 +500,34 @@ bool DSurface::Blit_From(Rect const & dcliprect, Rect const & destrect, Surface 
 	}
 
 	DSurface const & source = (DSurface const &)ssource;
+
+#ifndef _WIN32
+	{
+		/*
+		 * Without GDI, stretch with the software: nearest neighbour, as COLORONCOLOR does.
+		 */
+		Rect drect = destrect.Bias_To(dcliprect);
+		Rect srect = sourcerect.Bias_To(scliprect);
+		Rect clipped = Intersect(drect, Intersect(dcliprect, Get_Rect()));
+		if (!clipped.Is_Valid() || GDIBuffer == NULL || source.GDIBuffer == NULL) return(false);
+
+		for (int y = clipped.Y; y < clipped.Y + clipped.Height; y++) {
+			int sy = srect.Y + (int)(((long long)(y - drect.Y) * srect.Height) / drect.Height);
+			if (sy < 0 || sy >= source.Get_Height()) continue;
+			unsigned short const * from = (unsigned short const *)((char const *)source.GDIBuffer + (size_t)sy * source.Pitch);
+			unsigned short * to = (unsigned short *)((char *)GDIBuffer + (size_t)y * Pitch);
+			for (int x = clipped.X; x < clipped.X + clipped.Width; x++) {
+				int sx = srect.X + (int)(((long long)(x - drect.X) * srect.Width) / drect.Width);
+				if (sx < 0 || sx >= source.Get_Width()) continue;
+				to[x] = from[sx];
+			}
+		}
+		if (IsPrimary) {
+			Video_Mark_Dirty();
+		}
+		return(true);
+	}
+#endif
 
 	if (GDIDC == NULL || source.GDIDC == NULL) {
 		return(false);

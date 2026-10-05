@@ -17,10 +17,18 @@
 #include "ui/uienginehost.h"
 #include "ui/uishell.h"
 
+#ifndef _WIN32
+#include "rmlrendersoft.h"
+#endif
+
 #include <memory>
 
 
 UIShellClass UIShell(UI_Engine_Host(),
 					 std::make_unique<UIRmlSystemClass>(UI_Engine_Host()),
 					 std::make_unique<UIRmlFileClass>(),
+#ifdef _WIN32
 					 std::make_unique<UIRmlBgfxRenderClass>());
+#else
+					 std::make_unique<UIRmlSoftRenderClass>());
+#endif

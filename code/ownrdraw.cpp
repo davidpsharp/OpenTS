@@ -175,6 +175,10 @@ HFONT WS_Get_Font(HDC hdc, const char * face_name, int decipt_width, int decipt_
 HFONT Ez_Create_Font (HDC hdc, const char * face_name, int decipt_width,
 					int decipt_height, int attributes)
 {
+#ifndef _WIN32
+	// Fonts come from GDI, which only Windows has, so this text is not drawn elsewhere.
+	return(NULL);
+#else
 	HFONT		hFont ;
 	LOGFONT	lf ;
 	POINT		pt ;
@@ -221,6 +225,7 @@ HFONT Ez_Create_Font (HDC hdc, const char * face_name, int decipt_width,
 
 	RestoreDC (hdc, -1);
 	return(hFont);
+#endif
 }
 
 

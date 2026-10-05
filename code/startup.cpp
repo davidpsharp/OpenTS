@@ -308,6 +308,11 @@ static void RegisterClasses(void)
 /// argument the way a DOS program received it.</param>
 /// <param name="argv">Receives the argument array, which lasts as long as the process.</param>
 /// <returns>The number of arguments, which is never less than one.</returns>
+#ifndef _WIN32
+static int PosixArgumentCount = 0;
+static char ** PosixArguments = NULL;
+#endif
+
 static int Build_Arguments(char const * path_to_exe, char ** & argv)
 {
 	static std::vector<std::string> arguments;
@@ -317,6 +322,7 @@ static int Build_Arguments(char const * path_to_exe, char ** & argv)
 	pointers.clear();
 	arguments.push_back(path_to_exe);
 
+#ifdef _WIN32
 	int wide_count = 0;
 	LPWSTR * wide_argv = CommandLineToArgvW(GetCommandLineW(), &wide_count);
 
@@ -333,6 +339,12 @@ static int Build_Arguments(char const * path_to_exe, char ** & argv)
 
 		LocalFree(wide_argv);
 	}
+#else
+	// main() keeps the arguments the system passed; index zero names the executable.
+	for (int index = 1; index < PosixArgumentCount; index++) {
+		arguments.push_back(PosixArguments[index]);
+	}
+#endif
 
 	for (std::string & argument : arguments) {
 		pointers.push_back(argument.data());
@@ -350,6 +362,10 @@ static int Build_Arguments(char const * path_to_exe, char ** & argv)
 /// <returns>bool; Were the mutexes claimed? False means another copy is running.</returns>
 static bool Claim_Single_Instance(void)
 {
+#ifndef _WIN32
+	// Named mutexes and window lookup are Windows features; any number of copies may run.
+	return(true);
+#else
 	/*
 	 * Create a mutex with a unique name to TibSun in order to determine if
 	 * our app is already running.
@@ -421,6 +437,7 @@ static bool Claim_Single_Instance(void)
 	}
 
 	return(true);
+#endif
 }
 
 
@@ -1049,3 +1066,21 @@ void Emergency_Exit(void)
 
 	Prog_End();
 }
+
+
+#ifndef _WIN32
+/// <summary>
+/// The program entry point outside Windows. It keeps the arguments for Build_Arguments and
+/// runs WinMain, which holds the start-up sequence.
+/// </summary>
+int main(int argc, char ** argv)
+{
+	PosixArgumentCount = argc;
+	PosixArguments = argv;
+	// OPENTS_FOCUS=1 starts as if the window had the focus, for runs nobody is watching.
+	if (getenv("OPENTS_FOCUS") != NULL) {
+		GameInFocus = true;
+	}
+	return(WinMain(NULL, NULL, NULL, 0));
+}
+#endif

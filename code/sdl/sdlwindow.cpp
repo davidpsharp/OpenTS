@@ -120,7 +120,12 @@ HWND Window_Handle(void)
 	if (_Window == nullptr) {
 		return(NULL);
 	}
+#ifdef _WIN32
 	return((HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(_Window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+#else
+	// No native handle is needed elsewhere; the SDL window stands in so that it is not NULL.
+	return((HWND)_Window);
+#endif
 }
 
 
@@ -135,6 +140,7 @@ void Post_Event(Uint32 type)
 }
 
 
+#ifdef _WIN32
 // Windows can end the capture while the window keeps the focus, for a system menu or another
 // window taking the mouse, and SDL reports neither. The window's own releases are ignored.
 LRESULT CALLBACK Watch_Messages(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR)
@@ -150,6 +156,7 @@ LRESULT CALLBACK Watch_Messages(HWND window, UINT message, WPARAM wparam, LPARAM
 	}
 	return(result);
 }
+#endif
 
 
 void Handle_SDL_Event(SDL_Event const & sdlevent)
@@ -251,15 +258,19 @@ bool Start_SDL(void)
 
 	Set_Hints();
 
+#ifdef _WIN32
 	// The window class keeps the game's own name, which tools looking for the window use.
 	if (!SDL_RegisterApp("Tiberian Sun", 0, ProgramInstance)) {
 		DebugString("SDL: the window class was not registered: %s\n", SDL_GetError());
 	}
+#endif
 	SDL_SetMainReady();
 
 	if (!SDL_Init(SDL_INIT_VIDEO)) {
 		DebugString("SDL: video did not start: %s\n", SDL_GetError());
+#ifdef _WIN32
 		SDL_UnregisterApp();
+#endif
 		return(false);
 	}
 
@@ -322,13 +333,17 @@ void Main_Window_Destroy(void)
 	if (_Window != nullptr) {
 		SDL_RemoveEventWatch(Watch_Window, nullptr);
 		SDL_RemoveEventWatch(Watch_Keys, nullptr);
+#ifdef _WIN32
 		RemoveWindowSubclass(Window_Handle(), Watch_Messages, WindowSubclass);
+#endif
 		SDL_DestroyWindow(_Window);
 		_Window = nullptr;
 	}
 
 	SDL_Quit();
+#ifdef _WIN32
 	SDL_UnregisterApp();
+#endif
 	_Started = false;
 }
 
@@ -378,7 +393,9 @@ bool Main_Window_Create(bool windowed, int width, int height)
 
 	SDL_AddEventWatch(Watch_Window, nullptr);
 	SDL_AddEventWatch(Watch_Keys, nullptr);
+#ifdef _WIN32
 	SetWindowSubclass(Window_Handle(), Watch_Messages, WindowSubclass, 0);
+#endif
 	_Input.Reset();
 
 	SDL_ShowWindow(_Window);
@@ -395,7 +412,12 @@ NativeWindow Main_Window_Native(void)
 {
 	NativeWindow window = { NATIVE_WINDOW_DEFAULT, nullptr, nullptr };
 	if (_Window != nullptr) {
+#ifdef _WIN32
 		window.Handle = SDL_GetPointerProperty(SDL_GetWindowProperties(_Window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+#else
+		// The software presenter draws through SDL, so it takes the SDL window itself.
+		window.Handle = _Window;
+#endif
 	}
 	return(window);
 }

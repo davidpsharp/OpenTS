@@ -196,6 +196,13 @@ char const * RawFileClass::Set_Name(char const * filename)
 
 #ifndef _WIN32
 	/*
+	** The engine builds paths with Windows separators.
+	*/
+	for (char * c = Filename; *c != '\0'; c++) {
+		if (*c == '\\') *c = '/';
+	}
+
+	/*
 	** If we ever save this file, make sure we save it in lowercase but
 	** if Resolve_File finds an actual file on-disk we use the real name
 	** instead.
