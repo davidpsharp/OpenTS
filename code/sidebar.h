@@ -127,6 +127,9 @@ class SidebarClass : public PowerClass
 
 		int Max_Visible(void);
 
+		// Which column of buildable objects the screen point lies over: 0, 1, or -1 for neither.
+		int Column_At(Point2D const & point);
+
 		void Set_Cameo_Text(bool state);
 
 		void Blit_Sidebar(bool complete);

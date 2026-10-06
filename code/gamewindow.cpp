@@ -98,14 +98,24 @@ static void On_Right_Mouse_Up(void)
 }
 
 
-static void On_Mouse_Wheel(int delta)
+// Over one column of the sidebar the wheel scrolls just that column; elsewhere, both.
+static void On_Mouse_Wheel(int delta, int x, int y)
 {
 	if (_HandlingMouseWheel) {
 		return;
 	}
 
 	_HandlingMouseWheel = true;
-	Execute_Command(delta < 0 ? "SidebarDown" : "SidebarUp");
+	Point2D point(x, y);
+	Window_Point_To_Game(point);
+	int const column = GameActive ? Map.Column_At(point) : -1;
+	if (column == 0) {
+		Execute_Command(delta < 0 ? "LeftSidebarDown" : "LeftSidebarUp");
+	} else if (column == 1) {
+		Execute_Command(delta < 0 ? "RightSidebarDown" : "RightSidebarUp");
+	} else {
+		Execute_Command(delta < 0 ? "SidebarDown" : "SidebarUp");
+	}
 	_HandlingMouseWheel = false;
 }
 
@@ -189,7 +199,7 @@ static bool Handle_Event(WindowEvent const & event)
 
 		case WINDOW_EVENT_MOUSE_WHEEL:
 			if (!event.Horizontal) {
-				On_Mouse_Wheel(event.Wheel < 0.0f ? -1 : 1);
+				On_Mouse_Wheel(event.Wheel < 0.0f ? -1 : 1, event.X, event.Y);
 			}
 			break;
 

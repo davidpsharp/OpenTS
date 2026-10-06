@@ -842,6 +842,26 @@ bool SidebarClass::Add(RTTIType type, int id)
 }
 
 
+/// <summary>
+/// Finds which column of buildable objects lies under a point on the screen. The mouse
+/// wheel uses it to scroll just the column the pointer is over.
+/// </summary>
+/// <param name="point">The point, in screen (game) coordinates.</param>
+/// <returns>The column's index, or -1 if the point is over neither.</returns>
+int SidebarClass::Column_At(Point2D const & point)
+{
+	for (int column = 0; column < COLUMNS; column++) {
+		Rect area = Column[column].ObjectRect;
+		area.X += SidebarRect.X;
+		area.Y += SidebarRect.Y;
+		if (area.Is_Valid() && area.Is_Point_Within(point)) {
+			return(column);
+		}
+	}
+	return(-1);
+}
+
+
 /***********************************************************************************************
  * SidebarClass::Scroll -- Handles scrolling the sidebar object strip.                         *
  *                                                                                             *
