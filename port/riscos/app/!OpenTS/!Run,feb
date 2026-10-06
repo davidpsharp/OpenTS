@@ -1,5 +1,6 @@
 | !Run for OpenTS. The game data (the MIX files) goes in this directory.
 Set OpenTS$Dir <Obey$Dir>
+IconSprites <OpenTS$Dir>.!Sprites
 RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad System:Modules.SharedULib
 RMEnsure SharedUnixLibrary 1.16 Error OpenTS needs SharedUnixLibrary 1.16 or later
 RMEnsure ARMEABISupport 1.03 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport

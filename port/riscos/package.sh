@@ -6,7 +6,7 @@ ENV=/root/gccsdk/env
 OUT=/work/build/riscos/!OpenTS
 rm -rf "$OUT"
 mkdir -p "$OUT"
-cp "/work/port/riscos/app/!OpenTS/!Run,feb" "$OUT/"
+cp /work/port/riscos/app/!OpenTS/* "$OUT/"
 $ENV/bin/arm-riscos-gnueabihf-strip -o /work/build/riscos/OpenTS.stripped /work/build/riscos/OpenTS
 $ENV/bin/elf2aif -e /work/build/riscos/OpenTS.stripped "$OUT/!RunImage,ff8" >/dev/null
 rm /work/build/riscos/OpenTS.stripped
