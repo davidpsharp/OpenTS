@@ -6,7 +6,7 @@ RMEnsure SharedUnixLibrary 1.16 Error OpenTS needs SharedUnixLibrary 1.16 or lat
 RMEnsure ARMEABISupport 1.03 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport
 RMEnsure ARMEABISupport 1.03 Error OpenTS needs ARMEABISupport 1.03 or later
 | DigitalRenderer plays the sound (through UnixLib's /dev/dsp). Without it the game is silent.
-RMEnsure DigitalRenderer 0.56 IfThere System:Modules.DRenderer Then RMLoad System:Modules.DRenderer
+RMEnsure DigitalRenderer 0.55 IfThere System:Modules.DRenderer Then RMLoad System:Modules.DRenderer
 | The heap goes in a dynamic area, so the slot only holds the program.
 Set OpenTS$Heap ""
 WimpSlot -min 32000K -max 32000K

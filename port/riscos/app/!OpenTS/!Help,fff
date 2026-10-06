@@ -1,0 +1,145 @@
+OpenTS for RISC OS
+==================
+
+Preview release
+
+Command & Conquer: Tiberian Sun (1999) and its Firestorm expansion, for
+RISC OS. OpenTS is a community-led, open-source reconstruction of the
+game's engine: a new program, not the original executable. It is based on
+the source code Electronic Arts released under the GNU GPL for other
+Command & Conquer games, and on reverse engineering of Tiberian Sun.
+
+OpenTS:          https://github.com/OpenTS-Developers/OpenTS
+OpenTS manual:   https://opents-developers.github.io/OpenTS/
+
+This RISC OS version is a port of OpenTS. It draws everything in software,
+since RISC OS has no 3D drivers, and runs full screen.
+
+The main menu shows the version and the build it was made from.
+
+
+Requirements
+------------
+
+  * A Raspberry Pi 4 with RISC OS 5. It has been tested on RISC OS 5.30.
+  * These modules, which come with RISC OS 5 or from PackMan, in !System:
+      SharedUnixLibrary 1.16 or later
+      ARMEABISupport 1.03 or later
+      DigitalRenderer, for sound (without it the game is silent)
+  * About 250 MB of disc space for the game data, plus about 950 MB if
+    you want the movies.
+
+
+Installing the game data
+------------------------
+
+The game data isn't included. You need the freeware Tiberian Sun CD
+images that Electronic Arts released in 2010: the GDI disc and the
+Firestorm disc. (The Nod disc isn't needed: it holds the same game, with
+the Nod movies.) No CD key is needed.
+
+As of October 2026 they can be downloaded from cnc-comm.com:
+
+  GDI disc:        https://cnc-comm.com/tiberian-sun/downloads/the-game/gdi-disc
+  Firestorm disc:  https://cnc-comm.com/tiberian-sun/downloads/the-game/firestorm-disc
+
+The downloads are zip files (TS_GDI.zip and TS_Firestorm.zip), each holding
+one .iso file of about 700 MB. Unzip them first; that's easiest on a modern
+computer, since a zip and its ISO together need about 1.4 GB.
+
+The Prepare file that comes next to !OpenTS installs the data from the ISO
+files:
+
+  1. Put !OpenTS where you want to keep the game, and open the directory
+     containing it, so the Filer has seen it.
+  2. Copy Prepare into the directory holding the ISO files. They don't
+     need to be on the same disc as !OpenTS.
+  3. Double-click Prepare.
+
+Prepare reads the ISO files directly (no CD drive or CDFS is needed),
+copies the game files into !OpenTS and checks each one against the
+freeware discs' checksums. It recognises the images by their contents,
+so it doesn't matter if RISC OS has shortened their names. Files already
+installed are skipped, so it's safe to run it again.
+
+From the command line you can also name the images and give options:
+
+  *Obey SDFS::RISCOSpi.$.ISOs.Prepare -nomovies
+  *Obey SDFS::RISCOSpi.$.Prepare SDFS::RISCOSpi.$.Downloads.CD1_GDI/iso
+
+  -nomovies  leaves out the movies (MOVIES01.MIX and MOVIES03.MIX, about
+             950 MB together)
+  -force     rewrites files that are already there
+
+Without the Firestorm disc only Tiberian Sun itself can be played.
+Without the movies the game skips them.
+
+If you have the game data already, from the CDs or an installed copy, you
+can copy the files into !OpenTS yourself instead: TIBSUN.MIX, MAPS01.MIX,
+SCORES.MIX and SIDECD01.MIX from the GDI disc, and EXPAND01.MIX, MULTI.MIX,
+WDTVOX.MIX, E01SCD01.MIX, E01SCD02.MIX, MAPS03.MIX, SCORES01.MIX,
+SIDECD02.MIX and WDT.MIX from the Firestorm disc (several are in its
+INSTALL directory).
+
+
+Playing
+-------
+
+Double-click !OpenTS, then choose Tiberian Sun or Firestorm. The controls
+are the original game's. In a game, move the pointer to the edge of the
+screen to scroll the map. The mouse wheel scrolls the build columns in the
+sidebar: over one column it scrolls just that one, elsewhere both.
+
+The desktop doesn't respond while the game runs.
+
+Settings are kept in !OpenTS.sun/ini. The screen size is set in its [Video]
+section. It comes set to 640x480, which the game scales to fill the screen;
+larger sizes show more of the map but run more slowly:
+
+  [Video]
+  ScreenWidth=640
+  ScreenHeight=480
+
+Saved games are in !OpenTS.Saved Games. They can be moved between RISC OS
+and OpenTS on other computers.
+
+
+Problems
+--------
+
+The game writes a log to the Debug directory in !OpenTS, and its messages
+go to !OpenTS.stderr. If something goes wrong, please include the newest
+log and stderr in a bug report. To also log frame rates, set this before
+running the game:
+
+  *Set OPENTS_FPS 1
+
+Known issues in this preview:
+
+  * The end credits' text isn't drawn.
+  * Network play hasn't been tried on RISC OS.
+
+
+Licences
+--------
+
+OpenTS is free software under the GNU General Public License version 3 or
+later. Part of it is derived from the source code for Command & Conquer
+Red Alert, which Electronic Arts released under that licence with
+additional terms. See !OpenTS.Licences for the licence texts:
+
+  OpenTS          OpenTS and this port, including Utils.tsprep (GPL-3,
+                  with Electronic Arts' additional terms)
+  ThirdParty      the libraries built into !RunImage and their licences:
+                  SDL 3 (zlib), RmlUi (MIT), FreeType (FreeType Licence),
+                  LZO (GPL-2), Dear ImGui (MIT), miniaudio (MIT-0 or
+                  public domain), miniz (MIT)
+  Arimo           the Arimo font in !OpenTS.ui (SIL Open Font Licence)
+
+The GPL means you can have the source code: OpenTS's is at the address
+above. SharedUnixLibrary and the C library in !RunImage are from the GCCSDK
+project at https://www.riscos.info/.
+
+Command & Conquer and Tiberian Sun are trademarks of Electronic Arts.
+OpenTS is not affiliated with or endorsed by Electronic Arts. The game
+data remains the property of Electronic Arts.

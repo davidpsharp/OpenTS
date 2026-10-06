@@ -1,2 +1,3 @@
-| !Boot for OpenTS: the application's icon, for when the Filer first sees it.
+| !Boot for OpenTS: the application's icon, and where it is, for when the Filer first sees it.
+Set OpenTS$Dir <Obey$Dir>
 IconSprites <Obey$Dir>.!Sprites
