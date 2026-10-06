@@ -11,7 +11,12 @@ The flat version of the icon is the one the project uses at small sizes (see
 build-ico.sh). ImageMagick renders and downscales it.
 
 Usage: make-sprites.py [output directory]   (default: port/riscos/app/!OpenTS)
+       make-sprites.py --photo <image.png> [output directory]
   PREVIEW=<dir> also writes enlarged PNGs of each sprite for checking.
+
+--photo makes true-colour sprites instead, for RISC OS 5, from a square picture whose
+background is transparent: 32-bit sprites with a mask, 34x34 and 18x18 at 90x90 dpi in
+!Sprites22 and 34x17 and 18x9 at 90x45 dpi in !Sprites (rectangular-pixel modes).
 
 Adapted from the Vanilla Conquer RISC OS port's tool of the same name.
 """
@@ -105,7 +110,46 @@ def preview(path, pixels_idx, pal, size):
                    input=raw, check=True)
 
 
+def photo_pixels(path, w, h):
+    raw = subprocess.run(
+        ["magick", path, "-filter", "Lanczos", "-resize", "%dx%d!" % (w, h), "-unsharp", "0x0.6+0.6+0",
+         "-depth", "8", "rgba:-"], check=True, capture_output=True).stdout
+    return [tuple(raw[i:i + 4]) for i in range(0, len(raw), 4)]
+
+
+def photo_sprite(name, pixels, w, h, xdpi, ydpi):
+    """A 32bpp sprite (0xXXBBGGRR, red in the low byte) with a 1bpp mask."""
+    image = b"".join(struct.pack("<I", (p[2] << 16) | (p[1] << 8) | p[0]) if p[3] >= 128 else b"\0\0\0\0" for p in pixels)
+    mask_words, mask = pack_rows([1 if p[3] >= 128 else 0 for p in pixels], w, h, 1)
+    mode = (6 << 27) | (ydpi << 14) | (xdpi << 1) | 1
+    header = 44
+    total = header + len(image) + len(mask)
+    return struct.pack("<I12sIIIIIII", total, name.encode("latin-1"), w - 1, h - 1, 0, 31,
+                       header, header + len(image), mode) + image + mask
+
+
+def photo_main(source, out):
+    files = {"!Sprites22,ff9": [(NAME, 34, 34), ("sm" + NAME, 18, 18)],
+             "!Sprites,ff9": [(NAME, 34, 17), ("sm" + NAME, 18, 9)]}
+    for fname, shapes in files.items():
+        spr = []
+        for name, w, h in shapes:
+            pixels = photo_pixels(source, w, h)
+            spr.append(photo_sprite(name, pixels, w, h, 90, 90 if h == w else 45))
+            if os.environ.get("PREVIEW"):
+                raw = bytes(c for p in pixels for c in (p[:3] if p[3] >= 128 else (192, 192, 192)))
+                subprocess.run(["magick", "-size", "%dx%d" % (w, h), "-depth", "8", "rgb:-", "-scale", "800%",
+                                os.path.join(os.environ["PREVIEW"], "%s-%s.png" % (fname.split(",")[0].lstrip("!"), name.lstrip("!")))],
+                               input=raw, check=True)
+        with open(os.path.join(out, fname), "wb") as f:
+            f.write(sprite_file(spr))
+        print(os.path.join(out, fname))
+
+
 def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--photo":
+        photo_main(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else os.path.join(ROOT, "port", "riscos", "app", "!OpenTS"))
+        return
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "port", "riscos", "app", "!OpenTS")
     with tempfile.TemporaryDirectory() as tmp:
         big, small = render(34, tmp), render(18, tmp)
