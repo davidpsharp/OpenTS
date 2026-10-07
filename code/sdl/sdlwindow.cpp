@@ -29,6 +29,7 @@
 #include <vector>
 #ifndef _WIN32
 #include "riscoswheel.h"
+#include "riscosdesktop.h"
 #endif
 
 
@@ -543,6 +544,23 @@ void Main_Window_Pump_Events(void)
 
 	SDL_Event sdlevent;
 	while (SDL_PollEvent(&sdlevent)) {
+		// Shift+F12 (RISC OS): back to the desktop, paused, as if the window had lost the focus.
+		if ((sdlevent.type == SDL_EVENT_KEY_DOWN || sdlevent.type == SDL_EVENT_KEY_UP)
+			&& RISCOS_Desktop_Is_Leave_Key(sdlevent.key.key, sdlevent.key.mod)) {
+			if (sdlevent.type == SDL_EVENT_KEY_DOWN) {
+				WindowEvent focus;
+				focus.Type = WINDOW_EVENT_FOCUS_LOST;
+				Dispatch(focus);
+				RISCOS_Desktop_Suspend();
+				focus.Type = WINDOW_EVENT_FOCUS_GAINED;
+				Dispatch(focus);
+				// The desktop drew over the screen: the whole picture again, even if still.
+				WindowEvent exposed;
+				exposed.Type = WINDOW_EVENT_EXPOSED;
+				Dispatch(exposed);
+			}
+			continue;
+		}
 		if (!Watched(sdlevent.type)) {
 			Handle_SDL_Event(sdlevent);
 		}

@@ -16,6 +16,7 @@
 #include "audio/audiodevice.h"
 #include "dbgprint.h"
 #include "stackprime.h"
+#include "riscosdesktop.h"
 
 #include <SDL3/SDL.h>
 
@@ -23,6 +24,9 @@
 #include <vector>
 
 namespace {
+
+// The stream open for output, for Audio_SDL_Pause_For_Desktop.
+SDL_AudioStream * OpenStream = nullptr;
 
 class SDLAudioDeviceClass : public AudioDeviceClass
 {
@@ -109,6 +113,7 @@ bool SDLAudioDeviceClass::Open(unsigned rate, unsigned channels, RenderCallback 
 		DebugString("Audio: no output: %s\n", SDL_GetError());
 		return(false);
 	}
+	OpenStream = Stream;
 	DebugString("Audio: SDL output %s at %u Hz, %u channels\n", SDL_GetCurrentAudioDriver(), rate, channels);
 	return(true);
 }
@@ -118,6 +123,9 @@ void SDLAudioDeviceClass::Close(void)
 {
 	if (Stream != nullptr) {
 		Running.store(false, std::memory_order_release);
+		if (OpenStream == Stream) {
+			OpenStream = nullptr;
+		}
 		SDL_DestroyAudioStream(Stream);
 		Stream = nullptr;
 	}
@@ -149,4 +157,27 @@ void SDLAudioDeviceClass::Stop(void)
 std::unique_ptr<AudioDeviceClass> Audio_Create_Miniaudio_Device(void)
 {
 	return(std::make_unique<SDLAudioDeviceClass>());
+}
+
+
+/*
+** For the desktop (RISC OS, riscosdesktop.h): the output paused while the game is away, and
+** back as it was; a stream the game had paused itself stays paused.
+*/
+void Audio_SDL_Pause_For_Desktop(bool pause)
+{
+	static bool paused_here = false;
+	if (OpenStream == nullptr) {
+		paused_here = false;
+		return;
+	}
+	if (pause) {
+		paused_here = !SDL_AudioStreamDevicePaused(OpenStream);
+		if (paused_here) {
+			SDL_PauseAudioStreamDevice(OpenStream);
+		}
+	} else if (paused_here) {
+		SDL_ResumeAudioStreamDevice(OpenStream);
+		paused_here = false;
+	}
 }

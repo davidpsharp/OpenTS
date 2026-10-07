@@ -1072,6 +1072,8 @@ void Emergency_Exit(void)
 
 #ifndef _WIN32
 #include "crashreport.h"
+#include "riscosdesktop.h"
+#include <strings.h>
 
 /// <summary>
 /// The program entry point outside Windows. It keeps the arguments for Build_Arguments and
@@ -1087,6 +1089,15 @@ int main(int argc, char ** argv)
 	if (getenv("OPENTS_FOCUS") != NULL) {
 		GameInFocus = true;
 	}
+	// RISC OS: the icon on the icon bar, and waiting there for a click to start, except for a
+	// game started on the command line (-SPAWN) or a run nobody is watching.
+	bool wait = getenv("OPENTS_FOCUS") == NULL;
+	for (int i = 1; i < argc; i++) {
+		if (strncasecmp(argv[i], "-SPAWN", 6) == 0) {
+			wait = false;
+		}
+	}
+	RISCOS_Desktop_Start(wait);
 	return(WinMain(NULL, NULL, NULL, 0));
 }
 #endif

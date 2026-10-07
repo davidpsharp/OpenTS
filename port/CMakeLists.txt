@@ -164,6 +164,7 @@ if(RISCOS)
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/stack.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/crash.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/wheel.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/riscos/desktop.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/aeabi.c")
 endif()
 

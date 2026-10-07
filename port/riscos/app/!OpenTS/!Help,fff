@@ -85,12 +85,15 @@ INSTALL directory).
 Playing
 -------
 
-Double-click !OpenTS, then choose Tiberian Sun or Firestorm. The controls
-are the original game's. In a game, move the pointer to the edge of the
+Double-click !OpenTS to put its icon on the icon bar, then click the icon
+to start the game and choose Tiberian Sun or Firestorm. The controls are
+the original game's. In a game, move the pointer to the edge of the
 screen to scroll the map. The mouse wheel scrolls the build columns in the
 sidebar: over one column it scrolls just that one, elsewhere both.
 
-The desktop doesn't respond while the game runs.
+The desktop doesn't respond while the game is on the screen. Shift+F12
+goes back to it, with the game paused where it was (sound too); click the
+icon again to carry on. The icon's menu has Info and Quit.
 
 Settings are kept in !OpenTS.sun/ini. The screen size is set in its [Video]
 section. It comes set to 640x480, which the game scales to fill the screen;
