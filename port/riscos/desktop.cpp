@@ -106,7 +106,7 @@ void Indirected(Icon & icon, int x0, int y0, int x1, int y1, unsigned flags, cha
 
 /*
 ** "About this program", laid out as Edit's progInfo template: right-aligned labels (Name,
-** Purpose, Author, Version) beside sunken display fields.
+** Purpose, Author, Ported by, Version) beside sunken display fields.
 */
 void Create_Info_Window(void)
 {
@@ -130,7 +130,7 @@ void Create_Info_Window(void)
 			int length;
 		} title;
 		int icon_count;
-		Icon icons[8];
+		Icon icons[10];
 	} block;
 
 	static char const title[] = "About this program";
@@ -139,31 +139,31 @@ void Create_Info_Window(void)
 	memset(&block, 0, sizeof(block));
 	block.visible[0] = 392;
 	block.visible[1] = 628;
-	block.visible[2] = 392 + 638;
-	block.visible[3] = 628 + 248;
+	block.visible[2] = 392 + 668;
+	block.visible[3] = 628 + 308;
 	block.behind = -1;
 	// Moveable, auto-redraw, title bar, new format (as Edit's), but kept on the screen: opened
 	// from the icon bar's right-hand end, it would otherwise run off it.
 	block.flags = 0x84000012;
 	unsigned char const colours[8] = {7, 2, 7, 1, 12, 14, 12, 0};
 	memcpy(block.colours, colours, sizeof(colours));
-	block.extent[1] = -248;
-	block.extent[2] = 638;
+	block.extent[1] = -308;
+	block.extent[2] = 668;
 	block.title_flags = 0x0000013D; // text, border, centred, filled, indirected
 	block.sprite_area = 1;
 	block.title.buffer = title;
 	block.title.validation = (char const *)-1;
 	block.title.length = sizeof(title);
 
-	char const * labels[4] = {"Name", "Purpose", "Author", "Version"};
-	char const * values[4] = {AppName, AppPurpose, AppAuthor, version};
-	int const label_x0[4] = {62, 14, 30, 14};
-	for (int row = 0; row < 4; row++) {
+	// Edit's rows and fields, with a wider label column for "Ported by".
+	char const * labels[5] = {"Name", "Purpose", "Author", "Ported by", "Version"};
+	char const * values[5] = {AppName, AppPurpose, AppAuthor, "David Sharp", version};
+	for (int row = 0; row < 5; row++) {
 		int const top = -4 - 60 * row;
-		Indirected(block.icons[row], 154, top - 52, 630, top, 0x1700613D, values[row], field_valid);
-		Plain_Text(block.icons[4 + row], label_x0[row], top - 48, 154, top - 8, 0x17000211, labels[row]);
+		Indirected(block.icons[row], 184, top - 52, 660, top, 0x1700613D, values[row], field_valid);
+		Plain_Text(block.icons[5 + row], 8, top - 48, 184, top - 8, 0x17000211, labels[row]);
 	}
-	block.icon_count = 8;
+	block.icon_count = 10;
 
 	_kernel_swi_regs regs;
 	regs.r[1] = (int)&block;
