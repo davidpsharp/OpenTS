@@ -279,6 +279,30 @@ static int Is_Image_Name(char const * name)
 	return(length > 4 && (strcasecmp(name + length - 4, ".iso") == 0 || strcasecmp(name + length - 4, "/iso") == 0));
 }
 
+/* Whether a disc's files (but its movies, and files the other disc can supply) are already in
+** the current directory, at their sizes: installed by an earlier run, with that disc's image. */
+static int Disc_Installed(int disc)
+{
+	for (size_t f = 0; f < FILE_COUNT; f++) {
+		if (Files[f].disc == disc && !Files[f].movie && !Files[f].if_missing && File_Size(Files[f].name) != (long)Files[f].size) {
+			return(0);
+		}
+	}
+	return(1);
+}
+
+/* The last part of a path in either Unix or RISC OS form, for messages. */
+static char const * Leaf(char const * path)
+{
+	char const * leaf = path;
+	for (char const * p = path; *p != '\0'; p++) {
+		if ((*p == '/' || *p == '.') && p[1] != '\0') {
+			leaf = p + 1;
+		}
+	}
+	return(leaf);
+}
+
 int main(int argc, char ** argv)
 {
 	char const * search = NULL;
@@ -344,7 +368,11 @@ int main(int argc, char ** argv)
 	}
 
 	Crc_Init();
-	printf("Installing the Tiberian Sun data into %s\n", dest);
+	{
+		/* dest may be a system variable, such as <OpenTS$Dir>: name the directory itself. */
+		char where[1024];
+		printf("Installing the Tiberian Sun data into %s\n", getcwd(where, sizeof(where)) != NULL ? Leaf(where) : dest);
+	}
 
 	/* Firestorm first, so that its newer MULTI.MIX is the one kept. */
 	int found_discs = 0;
@@ -366,12 +394,20 @@ int main(int argc, char ** argv)
 
 	printf("\n");
 	if (!(found_discs & DISC_GDI)) {
-		printf("No GDI disc image was found. It is needed: it holds the game itself.\n");
-		Problems++;
+		if (Disc_Installed(DISC_GDI)) {
+			printf("The GDI disc's files were already installed.\n");
+		} else {
+			printf("No GDI disc image was found. It is needed: it holds the game itself.\n");
+			Problems++;
+		}
 	}
 	if (!(found_discs & DISC_FIRESTORM)) {
-		printf("No Firestorm disc image was found, so only Tiberian Sun itself can be played, without\n"
-			"the Firestorm expansion. Add the Firestorm image and run Prepare again to install it.\n");
+		if (Disc_Installed(DISC_FIRESTORM)) {
+			printf("The Firestorm disc's files were already installed.\n");
+		} else {
+			printf("No Firestorm disc image was found, so only Tiberian Sun itself can be played, without\n"
+				"the Firestorm expansion. Add the Firestorm image and run Prepare again to install it.\n");
+		}
 	}
 	if (Problems == 0) {
 		printf("Done. Double-click !OpenTS to play.\n");
