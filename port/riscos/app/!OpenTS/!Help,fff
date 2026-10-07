@@ -11,9 +11,13 @@ Command & Conquer games, and on reverse engineering of Tiberian Sun.
 
 OpenTS:          https://github.com/OpenTS-Developers/OpenTS
 OpenTS manual:   https://opents-developers.github.io/OpenTS/
+RISC OS port:    https://github.com/davidpsharp/OpenTS (branch riscos)
 
-This RISC OS version is a port of OpenTS. It draws everything in software,
-since RISC OS has no 3D drivers, and runs full screen.
+This RISC OS version is a port of OpenTS, ported by David Sharp. It needs
+RISC OS 5 on a Raspberry Pi (it doesn't run on a Risc PC). It draws
+everything in software, since RISC OS has no 3D drivers, and runs full
+screen. Its source code, updates and bug reports for the port are at the
+RISC OS port address above.
 
 The main menu shows the version and the build it was made from.
 
@@ -139,8 +143,9 @@ additional terms. See !OpenTS.Licences for the licence texts:
                   public domain), miniz (MIT)
   Arimo           the Arimo font in !OpenTS.ui (SIL Open Font Licence)
 
-The GPL means you can have the source code: OpenTS's is at the address
-above. SharedUnixLibrary and the C library in !RunImage are from the GCCSDK
+The GPL means you can have the source code: this RISC OS version's, with
+all of its changes to OpenTS, is at the RISC OS port address above (the
+riscos branch), and OpenTS's own at the OpenTS address. SharedUnixLibrary and the C library in !RunImage are from the GCCSDK
 project at https://www.riscos.info/.
 
 Command & Conquer and Tiberian Sun are trademarks of Electronic Arts.
