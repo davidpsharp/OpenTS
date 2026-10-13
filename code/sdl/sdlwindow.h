@@ -41,6 +41,9 @@ int Main_Window_Refresh_Rate(void);
 std::vector<std::pair<int, int>> Main_Window_Fullscreen_Sizes(void);
 
 void Main_Window_Pump_Events(void);
+// RISC OS: gives the screen back to the desktop, the game paused (as if the window had lost the
+// focus), until the icon bar icon is clicked. Elsewhere nothing.
+void Main_Window_Leave_For_Desktop(void);
 
 // Requests made before a pump reach the game as one WINDOW_EVENT_EXPOSED.
 void Main_Window_Request_Repaint(void);

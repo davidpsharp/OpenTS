@@ -1160,7 +1160,18 @@ restart:
 
 						Theme.Stop();
 
+#ifdef __riscos__
+						/*
+						**	On the desktop the game stays on the icon bar: clicking the icon comes back
+						**	to this menu, and the icon's Quit ends it.
+						*/
+						Main_Window_Leave_For_Desktop();
+						selection = SEL_NONE;
+						Theme.Queue_Song(Fetch_Main_Menu_Theme());
+						break;
+#else
 						return(false);
+#endif
 					}
 
 				/*

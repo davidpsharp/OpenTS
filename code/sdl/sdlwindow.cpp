@@ -532,6 +532,21 @@ std::vector<std::pair<int, int>> Main_Window_Fullscreen_Sizes(void)
 }
 
 
+void Main_Window_Leave_For_Desktop(void)
+{
+	WindowEvent focus;
+	focus.Type = WINDOW_EVENT_FOCUS_LOST;
+	Dispatch(focus);
+	RISCOS_Desktop_Suspend();
+	focus.Type = WINDOW_EVENT_FOCUS_GAINED;
+	Dispatch(focus);
+	// The desktop drew over the screen: the whole picture again, even if still.
+	WindowEvent exposed;
+	exposed.Type = WINDOW_EVENT_EXPOSED;
+	Dispatch(exposed);
+}
+
+
 void Main_Window_Pump_Events(void)
 {
 	if (_Window == nullptr) {
@@ -548,16 +563,7 @@ void Main_Window_Pump_Events(void)
 		if ((sdlevent.type == SDL_EVENT_KEY_DOWN || sdlevent.type == SDL_EVENT_KEY_UP)
 			&& RISCOS_Desktop_Is_Leave_Key(sdlevent.key.key, sdlevent.key.mod)) {
 			if (sdlevent.type == SDL_EVENT_KEY_DOWN) {
-				WindowEvent focus;
-				focus.Type = WINDOW_EVENT_FOCUS_LOST;
-				Dispatch(focus);
-				RISCOS_Desktop_Suspend();
-				focus.Type = WINDOW_EVENT_FOCUS_GAINED;
-				Dispatch(focus);
-				// The desktop drew over the screen: the whole picture again, even if still.
-				WindowEvent exposed;
-				exposed.Type = WINDOW_EVENT_EXPOSED;
-				Dispatch(exposed);
+				Main_Window_Leave_For_Desktop();
 			}
 			continue;
 		}
