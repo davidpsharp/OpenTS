@@ -21,6 +21,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <string.h>
 #ifndef __riscos__
 #include <ifaddrs.h>
 #endif
@@ -234,9 +235,61 @@ TransferResult PosixSocketClass::Receive_From(void * buffer, int length, IPXAddr
 bool PosixSocketClass::Local_Interfaces(std::vector<InterfaceType> & interfaces)
 {
 #ifdef __riscos__
-	// UnixLib has no getifaddrs, so no interface is listed.
-	(void)interfaces;
-	return(false);
+	/*
+	**	UnixLib has no getifaddrs, so list the interfaces with SIOCGIFCONF. Without the machine's
+	**	own addresses, its broadcasts come back to it and are taken for another player's.
+	**	The RISC OS Internet module is 4.4BSD derived: each entry is the interface name and a
+	**	sockaddr of sa_len bytes (link level ones are longer), so entries vary in length and may
+	**	be unaligned; each is copied out before it is read.
+	*/
+	char buffer[2048];
+	ifconf ifc;
+	ifc.ifc_len = sizeof(buffer);
+	ifc.ifc_buf = buffer;
+	if (ioctl(Socket, SIOCGIFCONF, &ifc) < 0) {
+		DebugString("SIOCGIFCONF failed - error code %d\n", errno);
+		return(false);
+	}
+
+	for (int offset = 0; offset + IFNAMSIZ + 2 <= ifc.ifc_len;) {
+		unsigned char const * entry = reinterpret_cast<unsigned char const *>(buffer) + offset;
+		int addr_len = entry[IFNAMSIZ];
+		if (addr_len < static_cast<int>(sizeof(sockaddr))) {
+			addr_len = sizeof(sockaddr);
+		}
+		int const entry_len = IFNAMSIZ + addr_len;
+		if (offset + entry_len > ifc.ifc_len) {
+			break;
+		}
+		offset += entry_len;
+
+		ifreq ifr;
+		memset(&ifr, 0, sizeof(ifr));
+		memcpy(&ifr, entry, entry_len < static_cast<int>(sizeof(ifr)) ? entry_len : sizeof(ifr));
+		ifr.ifr_name[IFNAMSIZ - 1] = '\0';
+		if (ifr.ifr_addr.sa_family != AF_INET) continue;
+
+		sockaddr_in sin;
+		memcpy(&sin, &ifr.ifr_addr, sizeof(sin));
+		InterfaceType found = {};
+		found.Address = sin.sin_addr.s_addr;
+		if (found.Address == 0) continue;
+
+		ifreq query = ifr;
+		if (ioctl(Socket, SIOCGIFFLAGS, &query) == 0 && (query.ifr_flags & IFF_BROADCAST) != 0
+			&& (query.ifr_flags & IFF_LOOPBACK) == 0) {
+			query = ifr;
+			if (ioctl(Socket, SIOCGIFBRDADDR, &query) == 0) {
+				sockaddr_in broadcast;
+				memcpy(&broadcast, &query.ifr_broadaddr, sizeof(broadcast));
+				found.Broadcast = broadcast.sin_addr.s_addr;
+			}
+		}
+		DebugString("Local interface %s: %s\n", ifr.ifr_name, inet_ntoa(sin.sin_addr));
+		interfaces.push_back(found);
+	}
+
+	return(!interfaces.empty());
 #else
 	ifaddrs * addresses = nullptr;
 
