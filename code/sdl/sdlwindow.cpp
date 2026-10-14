@@ -30,6 +30,7 @@
 #ifndef _WIN32
 #include "riscoswheel.h"
 #include "riscosdesktop.h"
+#include "riscostext.h"
 #endif
 
 
@@ -555,6 +556,7 @@ void Main_Window_Pump_Events(void)
 
 #ifndef _WIN32
 	RISCOS_Poll_Wheel();
+	RISCOS_Poll_Text();
 #endif
 
 	SDL_Event sdlevent;
