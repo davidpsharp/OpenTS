@@ -21,6 +21,7 @@
 */
 
 #include "riscosdesktop.h"
+#include "riscosoverlay.h"
 #include "opents_build.h"
 #include "opents_version.h"
 
@@ -389,6 +390,7 @@ int Mode_Variable(int variable)
 */
 void Give_Screen_To_Desktop(void)
 {
+	RISCOS_Overlay_Leave(); // the overlay covers everything
 	_kernel_osbyte(229, 0, 0); // Escape as normal
 	_kernel_osbyte(106, 1, 0); // the pointer on
 

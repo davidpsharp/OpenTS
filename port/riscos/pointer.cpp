@@ -19,6 +19,7 @@
 
 #include <kernel.h>
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -60,41 +61,58 @@ void RISCOS_Pointer_Set_Arrow(SDL_Cursor * cursor)
 	_Arrow = cursor;
 }
 
-void RISCOS_Pointer_Draw(std::uint32_t * pixels, int pitch, int width, int height, int redshift, int blueshift)
+// The picture to draw now, or none (and then the desktop's pointer stays as SDL left it).
+static PointerPicture const * Current_Picture(void)
 {
-	if (pixels == nullptr || !SDL_CursorVisible()) {
-		return;
+	if (!SDL_CursorVisible()) {
+		return(nullptr);
 	}
-
 	auto found = _Pictures.find(SDL_GetCursor());
 	if (found == _Pictures.end()) {
 		found = _Pictures.find(_Arrow);
 	}
 	if (found == _Pictures.end()) {
-		return; // nothing to draw, so the desktop's pointer stays as SDL left it
+		return(nullptr);
 	}
-
 	// SDL turns the hardware pointer on whenever it shows a cursor; this one is drawn instead.
 	_kernel_osbyte(106, 0, 0);
+	return(&found->second);
+}
 
-	float mousex = 0.0f;
-	float mousey = 0.0f;
-	SDL_GetMouseState(&mousex, &mousey);
+// 32-bit pixels, red at bit RedShift and blue at bit BlueShift.
+struct Pixel32
+{
+	int RedShift, BlueShift;
+	void Unpack(std::uint32_t pixel, unsigned & red, unsigned & green, unsigned & blue) const
+	{
+		red = (pixel >> RedShift) & 0xff;
+		green = (pixel >> 8) & 0xff;
+		blue = (pixel >> BlueShift) & 0xff;
+	}
+	std::uint32_t Pack(unsigned red, unsigned green, unsigned blue) const
+	{
+		return(0xff000000u | (red << RedShift) | (green << 8) | (blue << BlueShift));
+	}
+};
 
-	PointerPicture const & picture = found->second;
-	int const left = (int)mousex - picture.HotX;
-	int const top = (int)mousey - picture.HotY;
+// Draws every step'th pixel of the picture with its hotspot at x, y.
+template <typename PixelType, typename Format>
+static void Draw_Picture(PointerPicture const & picture, int step, int atx, int aty,
+	PixelType * pixels, int pitch, int width, int height, Format const & format)
+{
+	int const left = atx - picture.HotX / step;
+	int const top = aty - picture.HotY / step;
 
-	for (int y = 0; y < picture.Height; y++) {
+	for (int y = 0; y * step < picture.Height; y++) {
 		int const screeny = top + y;
 		if (screeny < 0 || screeny >= height) {
 			continue;
 		}
-		unsigned int const * source = &picture.Pixels[(size_t)y * (size_t)picture.Width];
-		std::uint32_t * dest = pixels + (size_t)screeny * (size_t)pitch;
-		for (int x = 0; x < picture.Width; x++) {
+		unsigned int const * source = &picture.Pixels[(size_t)(y * step) * (size_t)picture.Width];
+		PixelType * dest = pixels + (size_t)screeny * (size_t)pitch;
+		for (int x = 0; x * step < picture.Width; x++) {
 			int const screenx = left + x;
-			unsigned int const argb = source[x];
+			unsigned int const argb = source[x * step];
 			unsigned int const alpha = argb >> 24;
 			if (alpha == 0 || screenx < 0 || screenx >= width) {
 				continue;
@@ -103,12 +121,53 @@ void RISCOS_Pointer_Draw(std::uint32_t * pixels, int pitch, int width, int heigh
 			unsigned int green = (argb >> 8) & 0xff;
 			unsigned int blue = argb & 0xff;
 			if (alpha < 255) {
-				std::uint32_t const under = dest[screenx];
-				red = (red * alpha + ((under >> redshift) & 0xff) * (255 - alpha)) / 255;
-				green = (green * alpha + ((under >> 8) & 0xff) * (255 - alpha)) / 255;
-				blue = (blue * alpha + ((under >> blueshift) & 0xff) * (255 - alpha)) / 255;
+				unsigned underred, undergreen, underblue;
+				format.Unpack(dest[screenx], underred, undergreen, underblue);
+				red = (red * alpha + underred * (255 - alpha)) / 255;
+				green = (green * alpha + undergreen * (255 - alpha)) / 255;
+				blue = (blue * alpha + underblue * (255 - alpha)) / 255;
 			}
-			dest[screenx] = 0xff000000u | (red << redshift) | (green << 8) | (blue << blueshift);
+			dest[screenx] = format.Pack(red, green, blue);
 		}
 	}
 }
+
+void RISCOS_Pointer_Draw(std::uint32_t * pixels, int pitch, int width, int height, int redshift, int blueshift)
+{
+	PointerPicture const * picture = pixels != nullptr ? Current_Picture() : nullptr;
+	if (picture == nullptr) {
+		return;
+	}
+	float mousex = 0.0f;
+	float mousey = 0.0f;
+	SDL_GetMouseState(&mousex, &mousey);
+	Draw_Picture(*picture, 1, (int)mousex, (int)mousey, pixels, pitch, width, height, Pixel32{redshift, blueshift});
+}
+
+// Where the mouse is in a frame shown stretched over the screen rectangle given, and the step
+// that makes a picture made at the screen's scale (a whole multiple of the frame's) the frame's.
+static void Place_In_Frame(int width, int height, int destx, int desty, int destwidth, int destheight,
+	int & x, int & y, int & step)
+{
+	float mousex = 0.0f;
+	float mousey = 0.0f;
+	SDL_GetMouseState(&mousex, &mousey);
+	x = (int)((mousex - destx) * width / destwidth);
+	y = (int)((mousey - desty) * height / destheight);
+	int const scalex = (destwidth + width / 2) / width;
+	int const scaley = (destheight + height / 2) / height;
+	step = std::max(1, std::min(scalex, scaley));
+}
+
+void RISCOS_Pointer_Draw_Into_Frame(std::uint32_t * pixels, int pitch, int width, int height, int redshift, int blueshift,
+	int destx, int desty, int destwidth, int destheight)
+{
+	PointerPicture const * picture = pixels != nullptr && destwidth > 0 && destheight > 0 ? Current_Picture() : nullptr;
+	if (picture == nullptr) {
+		return;
+	}
+	int x, y, step;
+	Place_In_Frame(width, height, destx, desty, destwidth, destheight, x, y, step);
+	Draw_Picture(*picture, step, x, y, pixels, pitch, width, height, Pixel32{redshift, blueshift});
+}
+

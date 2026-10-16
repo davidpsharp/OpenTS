@@ -21,6 +21,10 @@ The compiler must be clang: the engine uses MSVC's `__declspec(property)`, which
 Everything is drawn in software, because RISC OS has no 3D drivers: the 565 game frame is
 scaled into a 32-bit screen, the UI overlay is rasterised over it, and SDL copies the screen
 to the window.
+On a Raspberry Pi with the VideoOverlay module (in `!System`, loaded by `!Run`), frames the UI
+draws nothing over go through the display's hardware overlay instead: the frame is converted
+once at its own size into the overlay's buffer and the display stretches it, which takes the
+scaling and the copy off the CPU (`riscos/overlay.cpp`; `*Set OpenTS$NoOverlay 1` turns it off).
 
 ## Building for RISC OS
 

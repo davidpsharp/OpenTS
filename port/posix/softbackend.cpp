@@ -17,6 +17,7 @@
 #include "bgfxbackend.h"
 #include "dbgprint.h"
 #include "ftimer.h"
+#include "riscosoverlay.h"
 #include "riscospointer.h"
 #include "softscreen.h"
 
@@ -44,6 +45,41 @@ static Uint64 _TimeBlit = 0;		// copying the screen to the window surface
 static Uint64 _TimeUpdate = 0;		// handing the window surface to the system
 static Uint64 _TimePointer = 0;		// drawing the pointer (RISC OS)
 static Uint64 _OverlayStart = 0;
+
+// RISC OS on the Pi: frames shown through the display's hardware overlay, which stretches them
+// itself (riscosoverlay.h). Only frames the UI draws nothing over go that way, as the UI is drawn
+// at the screen's size; the frame after one it drew over is drawn the usual way.
+static bool _ThroughOverlay = false;	// this frame goes to the overlay
+static bool _Skipped = false;			// so it wasn't stretched into the screen
+static bool _UIDrew = false;			// the UI drew this frame
+static bool _UIDrewLast = false;		// ... and the frame before
+static int _DestX = 0, _DestY = 0, _DestWidth = 0, _DestHeight = 0;
+// The game's 565 frame, and whether _Frame is older than it: through the overlay it is converted
+// straight into the overlay's buffer, and into _Frame only for the usual way.
+static void const * _Pixels565 = nullptr;
+static int _Pitch565 = 0;
+static bool _FrameStale = false;
+
+void Soft_Note_UI_Drawn(void)
+{
+	_UIDrew = true;
+}
+
+static void Convert_Frame_To(std::uint32_t * dest, int destpitch, void const * pixels, int pitch);
+
+// The frame and the pointer, into the overlay's buffer (pitch in bytes).
+static void Draw_Overlay_Frame(void * pixels, int pitch)
+{
+	if (_FrameStale) {
+		Convert_Frame_To((std::uint32_t *)pixels, pitch / 4, _Pixels565, _Pitch565);
+	} else {
+		for (int y = 0; y < _FrameHeight; y++) {
+			std::memcpy((char *)pixels + (size_t)y * (size_t)pitch, &_Frame[(size_t)y * (size_t)_FrameWidth], (size_t)_FrameWidth * 4);
+		}
+	}
+	RISCOS_Pointer_Draw_Into_Frame((std::uint32_t *)pixels, pitch / 4, _FrameWidth, _FrameHeight, _Soft.RedShift, _Soft.BlueShift,
+		_DestX, _DestY, _DestWidth, _DestHeight);
+}
 
 // 565 to 0xFFRRGGBB, with the low bits filled from the high ones so white stays white.
 static std::uint32_t _Expand565[65536];
@@ -142,6 +178,8 @@ bool Backend_Set_Frame_Size(int width, int height)
 	_FrameWidth = width;
 	_FrameHeight = height;
 	_Frame.assign((size_t)width * (size_t)height, 0xFF000000u);
+	_Pixels565 = nullptr;
+	_FrameStale = false;
 	return(true);
 }
 
@@ -154,15 +192,22 @@ void Backend_On_Resize(int drawablewidth, int drawableheight)
 }
 
 
-static void Convert_Frame(void const * pixels, int pitch)
+// The 565 game frame to 32 bits (destpitch in pixels).
+static void Convert_Frame_To(std::uint32_t * dest, int destpitch, void const * pixels, int pitch)
 {
 	for (int y = 0; y < _FrameHeight; y++) {
 		std::uint16_t const * source = (std::uint16_t const *)((char const *)pixels + (size_t)y * (size_t)pitch);
-		std::uint32_t * dest = &_Frame[(size_t)y * (size_t)_FrameWidth];
+		std::uint32_t * row = dest + (size_t)y * (size_t)destpitch;
 		for (int x = 0; x < _FrameWidth; x++) {
-			dest[x] = _Expand565[source[x]];
+			row[x] = _Expand565[source[x]];
 		}
 	}
+}
+
+
+static void Convert_Frame(void const * pixels, int pitch)
+{
+	Convert_Frame_To(_Frame.data(), _FrameWidth, pixels, pitch);
 }
 
 
@@ -266,13 +311,30 @@ bool Backend_Present(void const * pixels, int pitch, int destx, int desty, int d
 	}
 	_ScaleMode = mode;
 	if (pixels != nullptr) {
-		Convert_Frame(pixels, pitch);
+		_Pixels565 = pixels; // the game's visible surface, which lasts until the frame size changes
+		_Pitch565 = pitch;
+		_FrameStale = true;
 	}
 
 	// The overlay is drawn over the frame each time, so the whole screen is redrawn: the
 	// frame covers its rectangle, and only the borders around it need clearing.
-	Clear_Borders(destx, desty, destwidth, destheight);
-	Scale_Frame(destx, desty, destwidth, destheight);
+	_DestX = destx;
+	_DestY = desty;
+	_DestWidth = destwidth;
+	_DestHeight = destheight;
+	_ThroughOverlay = !_UIDrewLast && _FrameWidth > 0 && RISCOS_Overlay_Available();
+	// While the overlay is showing, the screen underneath isn't seen. Otherwise this frame is
+	// drawn the usual way as well, to put the borders round the overlay.
+	_Skipped = _ThroughOverlay && RISCOS_Overlay_Showing();
+	// The overlay takes the game's frame as it is if it can; otherwise it's converted first.
+	if (_FrameStale && !_Skipped) {
+		Convert_Frame(_Pixels565, _Pitch565);
+		_FrameStale = false;
+	}
+	if (!_Skipped) {
+		Clear_Borders(destx, desty, destwidth, destheight);
+		Scale_Frame(destx, desty, destwidth, destheight);
+	}
 	_OverlayStart = SDL_GetTicksNS();
 	_TimeFrame += _OverlayStart - start;
 	return(true);
@@ -325,6 +387,39 @@ void Backend_End_Frame(void)
 			count = 0;
 			startframe = Frame;
 		}
+	}
+
+	bool const uidrew = _UIDrew;
+	_UIDrewLast = uidrew;
+	_UIDrew = false;
+	if (_ThroughOverlay) {
+		_ThroughOverlay = false;
+		Uint64 const showstart = SDL_GetTicksNS();
+		if (uidrew) {
+			// The UI drew over a screen that may not have the frame in it: this frame isn't
+			// shown, and the next is drawn the usual way.
+			if (_Skipped) {
+				return;
+			}
+		} else if (RISCOS_Overlay_Show(_FrameWidth, _FrameHeight, _Soft.RedShift == 16 ? OVERLAY_XRGB : OVERLAY_XBGR,
+				_DestX, _DestY, _DestWidth, _DestHeight, Draw_Overlay_Frame)) {
+			_TimeBlit += SDL_GetTicksNS() - showstart;
+			if (_Skipped) {
+				return;
+			}
+		} else if (_Skipped) {
+			// The overlay failed with nothing drawn on the screen: draw the frame now.
+			if (_FrameStale) {
+				Convert_Frame(_Pixels565, _Pitch565);
+				_FrameStale = false;
+			}
+			Clear_Borders(_DestX, _DestY, _DestWidth, _DestHeight);
+			Scale_Frame(_DestX, _DestY, _DestWidth, _DestHeight);
+			RISCOS_Pointer_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift);
+		}
+	}
+	if (uidrew || !RISCOS_Overlay_Available()) {
+		RISCOS_Overlay_Hide();
 	}
 
 	SDL_Surface * target = SDL_GetWindowSurface(_Window);

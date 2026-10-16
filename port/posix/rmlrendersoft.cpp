@@ -399,6 +399,7 @@ void UIRmlSoftRenderClass::Draw_Triangles(std::vector<ScreenVertex> const & vert
 	if (screen.Pixels == nullptr) {
 		return;
 	}
+	Soft_Note_UI_Drawn();
 	int const rs = screen.RedShift, bs = screen.BlueShift;
 
 	int clipx0, clipy0, clipx1, clipy1;

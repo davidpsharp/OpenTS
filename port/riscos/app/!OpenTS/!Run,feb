@@ -7,6 +7,8 @@ RMEnsure ARMEABISupport 1.03 IfThere System:Modules.ARMEABISupport Then RMLoad S
 RMEnsure ARMEABISupport 1.03 Error OpenTS needs ARMEABISupport 1.03 or later
 | DigitalRenderer plays the sound (through UnixLib's /dev/dsp). Without it the game is silent.
 RMEnsure DigitalRenderer 0.55 IfThere System:Modules.DRenderer Then RMLoad System:Modules.DRenderer
+| On the Pi the display stretches the game's frames through an overlay (VideoOverlay, in !System).
+RMEnsure VideoOverlay 0.00 IfThere System:Modules.VideoOverlay Then RMLoad System:Modules.VideoOverlay
 | The heap goes in a dynamic area, so the slot only holds the program.
 Set OpenTS$Heap ""
 WimpSlot -min 32000K -max 32000K

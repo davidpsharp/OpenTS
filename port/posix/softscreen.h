@@ -30,3 +30,6 @@ struct SoftScreen
 
 // The screen for this frame, or one with no pixels before Backend_Init.
 SoftScreen const & Soft_Screen(void);
+
+// The UI says it drew into the screen this frame.
+void Soft_Note_UI_Drawn(void);
