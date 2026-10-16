@@ -30,26 +30,38 @@ Requirements
       SharedUnixLibrary 1.16 or later
       ARMEABISupport 1.03 or later
       DigitalRenderer, for sound (without it the game is silent)
-  * About 250 MB of disc space for the game data, plus about 950 MB if
-    you want the movies.
+  * About 250 MB of disc space for the game data, plus about 1.4 GB if
+    you want all the movies.
 
 
 Installing the game data
 ------------------------
 
 The game data isn't included. You need the freeware Tiberian Sun CD
-images that Electronic Arts released in 2010: the GDI disc and the
-Firestorm disc. (The Nod disc isn't needed: it holds the same game, with
-the Nod movies.) No CD key is needed.
+images that Electronic Arts released in 2010. There are three discs, and
+no CD key is needed:
+
+  GDI disc        the game itself, the GDI campaign and its movies
+  Nod disc        the Nod campaign and its movies
+  Firestorm disc  the Firestorm expansion: its two campaigns, its movies
+                  and its extra skirmish and multiplayer maps
+
+The GDI disc is needed. Without the Nod disc the Nod campaign can't be
+played (the GDI campaign, Firestorm, skirmish and multiplayer games can
+all still be), and without the Firestorm disc only Tiberian Sun itself
+can be played. All three are best.
 
 As of October 2026 they can be downloaded from cnc-comm.com:
 
   GDI disc:        https://cnc-comm.com/tiberian-sun/downloads/the-game/gdi-disc
+  Nod disc:        https://cnc-comm.com/tiberian-sun/downloads/the-game/nod-disc
   Firestorm disc:  https://cnc-comm.com/tiberian-sun/downloads/the-game/firestorm-disc
 
-The downloads are zip files (TS_GDI.zip and TS_Firestorm.zip), each holding
-one .iso file of about 700 MB. Unzip them first; that's easiest on a modern
-computer, since a zip and its ISO together need about 1.4 GB.
+The downloads are zip files (TS_GDI.zip, TS_Nod.zip and TS_Firestorm.zip),
+each holding one .iso file of about 700 MB. Unzip them first; that's
+easiest on a modern computer, since a zip and its ISO together need about
+1.3 GB. If you are short of space, install one disc at a time: unzip it,
+run Prepare, then delete the ISO before the next.
 
 The Prepare file that comes next to !OpenTS installs the data from the ISO
 files:
@@ -71,19 +83,22 @@ From the command line you can also name the images and give options:
   *Obey SDFS::RISCOSpi.$.ISOs.Prepare -nomovies
   *Obey SDFS::RISCOSpi.$.Prepare SDFS::RISCOSpi.$.Downloads.CD1_GDI/iso
 
-  -nomovies  leaves out the movies (MOVIES01.MIX and MOVIES03.MIX, about
-             950 MB together)
+  -nomovies  leaves out the movies (MOVIES01.MIX, MOVIES02.MIX and
+             MOVIES03.MIX, about 1.4 GB together)
   -force     rewrites files that are already there
 
-Without the Firestorm disc only Tiberian Sun itself can be played.
-Without the movies the game skips them.
+Without the movies the game skips them. If you added the GDI disc first
+and the Nod disc later, just run Prepare again with the Nod image: the
+files already installed are skipped.
 
 If you have the game data already, from the CDs or an installed copy, you
 can copy the files into !OpenTS yourself instead: TIBSUN.MIX, MAPS01.MIX,
-SCORES.MIX and SIDECD01.MIX from the GDI disc, and EXPAND01.MIX, MULTI.MIX,
-WDTVOX.MIX, E01SCD01.MIX, E01SCD02.MIX, MAPS03.MIX, SCORES01.MIX,
-SIDECD02.MIX and WDT.MIX from the Firestorm disc (several are in its
-INSTALL directory).
+SCORES.MIX and SIDECD01.MIX from the GDI disc, MAPS02.MIX and SIDECD02.MIX
+from the Nod disc, and EXPAND01.MIX, MULTI.MIX, WDTVOX.MIX, E01SCD01.MIX,
+E01SCD02.MIX, MAPS03.MIX, SCORES01.MIX, SIDECD02.MIX and WDT.MIX from the
+Firestorm disc (several are in its INSTALL directory; its MULTI.MIX and
+SIDECD02.MIX are newer than the other discs' copies). The movies are
+MOVIES01.MIX, MOVIES02.MIX and MOVIES03.MIX, one on each disc.
 
 
 Playing
@@ -124,7 +139,9 @@ running the game:
 Known issues in this preview:
 
   * The end credits' text isn't drawn.
-  * Network play hasn't been tried on RISC OS.
+  * Network play has only been tried between Pis on a local network (LAN).
+  * The World Domination Tour needs Westwood's old online service, which
+    has closed, so it doesn't start.
 
 
 Licences

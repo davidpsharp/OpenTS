@@ -13,8 +13,8 @@
 **   tsprep [-search <dir>] [-dest <dir>] [-nomovies] [-force] [<image>...]
 **
 ** It reads the ISO 9660 images directly, so no CD drive is needed. Each image is recognised
-** by its contents (the GDI disc holds INSTALL/TIBSUN.MIX, the Firestorm disc
-** INSTALL/EXPAND01.MIX), so its name doesn't matter. The files the game needs are copied
+** by its contents (the GDI and Nod discs both hold INSTALL/TIBSUN.MIX, with MAPS01.MIX or
+** MAPS02.MIX, the Firestorm disc INSTALL/EXPAND01.MIX), so its name doesn't matter. The files the game needs are copied
 ** into the destination and checked against the sizes and CRC-32s of EA's freeware images.
 ** A file already there at the right size is skipped unless -force is given.
 **
@@ -34,7 +34,7 @@
 
 #define SECTOR 2048
 
-enum { DISC_GDI = 1, DISC_FIRESTORM = 2 };
+enum { DISC_GDI = 1, DISC_FIRESTORM = 2, DISC_NOD = 4 };
 
 typedef struct {
 	int disc;
@@ -46,7 +46,9 @@ typedef struct {
 	int if_missing;			/* never replaces a copy already there (another disc's is better) */
 } FileType;
 
-/* The Firestorm disc's copies of MULTI.MIX and LANGUAGE.DLL are newer than the GDI disc's. */
+/* The Firestorm disc's copies of MULTI.MIX, LANGUAGE.DLL and SIDECD02.MIX are newer than the
+** GDI and Nod discs'. The Nod disc holds the GDI disc's TIBSUN.MIX, SCORES.MIX and MULTI.MIX
+** too, and its own campaign (MAPS02.MIX) and movies. */
 static FileType const Files[] = {
 	{ DISC_GDI, "INSTALL/TIBSUN.MIX", "TIBSUN.MIX", 75094736u, 0x948e1a19u, 0, 0 },
 	{ DISC_GDI, "MAPS01.MIX", "MAPS01.MIX", 3668236u, 0xd3e6b5d8u, 0, 0 },
@@ -54,6 +56,12 @@ static FileType const Files[] = {
 	{ DISC_GDI, "SIDECD01.MIX", "SIDECD01.MIX", 12304388u, 0x581c5f80u, 0, 0 },
 	{ DISC_GDI, "MULTI.MIX", "MULTI.MIX", 8558956u, 0x2803c630u, 0, 1 },
 	{ DISC_GDI, "MOVIES01.MIX", "MOVIES01.MIX", 489980956u, 0x190ec288u, 1, 0 },
+	{ DISC_NOD, "INSTALL/TIBSUN.MIX", "TIBSUN.MIX", 75094736u, 0x948e1a19u, 0, 0 },
+	{ DISC_NOD, "MAPS02.MIX", "MAPS02.MIX", 3503740u, 0xdddd67a8u, 0, 0 },
+	{ DISC_NOD, "SCORES.MIX", "SCORES.MIX", 51332268u, 0x669b46b9u, 0, 0 },
+	{ DISC_NOD, "SIDECD02.MIX", "SIDECD02.MIX", 11141812u, 0xe9a00880u, 0, 1 },
+	{ DISC_NOD, "MULTI.MIX", "MULTI.MIX", 8558956u, 0x2803c630u, 0, 1 },
+	{ DISC_NOD, "MOVIES02.MIX", "MOVIES02.MIX", 490656380u, 0xf2ea4a2au, 1, 0 },
 	{ DISC_FIRESTORM, "INSTALL/EXPAND01.MIX", "EXPAND01.MIX", 36972996u, 0xa2549943u, 0, 0 },
 	{ DISC_FIRESTORM, "INSTALL/LANGUAGE.DLL", "LANGUAGE.DLL", 122880u, 0x98688c5eu, 0, 0 },
 	{ DISC_FIRESTORM, "INSTALL/MULTI.MIX", "MULTI.MIX", 11960308u, 0xc462174eu, 0, 0 },
@@ -173,7 +181,9 @@ static int Find_File(FILE * image, char const * path, uint32_t * lba, uint32_t *
 static int Identify(FILE * image)
 {
 	uint32_t lba, size;
-	if (Find_File(image, "INSTALL/TIBSUN.MIX", &lba, &size)) return(DISC_GDI);
+	if (Find_File(image, "INSTALL/TIBSUN.MIX", &lba, &size)) {
+		return(Find_File(image, "MAPS02.MIX", &lba, &size) ? DISC_NOD : DISC_GDI);
+	}
 	if (Find_File(image, "INSTALL/EXPAND01.MIX", &lba, &size)) return(DISC_FIRESTORM);
 	return(0);
 }
@@ -374,15 +384,16 @@ int main(int argc, char ** argv)
 		printf("Installing the Tiberian Sun data into %s\n", getcwd(where, sizeof(where)) != NULL ? Leaf(where) : dest);
 	}
 
-	/* Firestorm first, so that its newer MULTI.MIX is the one kept. */
+	/* Firestorm first, so that its newer copies are the ones kept. */
+	static int const Order[] = { DISC_FIRESTORM, DISC_GDI, DISC_NOD };
 	int found_discs = 0;
-	for (int pass = DISC_FIRESTORM; pass >= DISC_GDI; pass--) {
+	for (size_t pass = 0; pass < sizeof(Order) / sizeof(Order[0]); pass++) {
 		for (int i = 0; i < opened_count; i++) {
 			FILE * image = opened[i];
 			int const disc = Identify(image);
-			if (disc == pass) {
+			if (disc == Order[pass]) {
 				found_discs |= disc;
-				printf("\n%s disc: %s\n", disc == DISC_GDI ? "GDI" : "Firestorm", images[i]);
+				printf("\n%s disc: %s\n", disc == DISC_GDI ? "GDI" : disc == DISC_NOD ? "Nod" : "Firestorm", images[i]);
 				for (size_t f = 0; f < FILE_COUNT; f++) {
 					if (Files[f].disc == disc && (movies || !Files[f].movie)) {
 						Install(image, &Files[f], force);
@@ -397,8 +408,16 @@ int main(int argc, char ** argv)
 		if (Disc_Installed(DISC_GDI)) {
 			printf("The GDI disc's files were already installed.\n");
 		} else {
-			printf("No GDI disc image was found. It is needed: it holds the game itself.\n");
+			printf("No GDI disc image was found. It is needed: it holds the GDI campaign and sidebar.\n");
 			Problems++;
+		}
+	}
+	if (!(found_discs & DISC_NOD)) {
+		if (Disc_Installed(DISC_NOD)) {
+			printf("The Nod disc's files were already installed.\n");
+		} else {
+			printf("No Nod disc image was found, so the Nod campaign can't be played (skirmish and\n"
+				"multiplayer games can still be). Add the Nod image and run Prepare again to install it.\n");
 		}
 	}
 	if (!(found_discs & DISC_FIRESTORM)) {

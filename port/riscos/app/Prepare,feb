@@ -1,10 +1,10 @@
 | Prepare for OpenTS
 | Installs the Tiberian Sun data into !OpenTS from the freeware CD images in the same
-| directory as this file: the GDI disc and the Firestorm disc. Copy it next to the .iso
+| directory as this file: the GDI, Nod and Firestorm discs. Copy it next to the .iso
 | files and double-click it, or from the command line:
 |   *Obey <path>.Prepare [<CD image>...] [-nomovies] [-force]
-| -nomovies leaves out the movies (about 490 MB on the GDI disc and 460 MB on the
-| Firestorm disc).
+| -nomovies leaves out the movies (about 490 MB each on the GDI and Nod discs and 460 MB
+| on the Firestorm disc).
 | -force rewrites files that are already there.
 If "<OpenTS$Dir>"="" Then Error Prepare doesn't know where !OpenTS is yet. Open the directory containing it, then run Prepare again.
 RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad System:Modules.SharedULib
