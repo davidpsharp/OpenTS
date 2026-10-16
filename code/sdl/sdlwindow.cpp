@@ -31,6 +31,7 @@
 #include "riscoswheel.h"
 #include "riscosdesktop.h"
 #include "riscostext.h"
+#include "riscospointer.h"
 #endif
 
 
@@ -698,6 +699,7 @@ SDL_Cursor * Main_Window_Create_Cursor(unsigned int const * pixels, int width, i
 
 	SDL_Cursor * cursor = SDL_CreateColorCursor(surface, hotx, hoty);
 	SDL_DestroySurface(surface);
+	RISCOS_Pointer_Add(cursor, pixels, width, height, hotx, hoty);
 	return(cursor);
 }
 
@@ -709,6 +711,7 @@ void Main_Window_Destroy_Cursor(SDL_Cursor * cursor)
 		if (SDL_GetCursor() == cursor) {
 			SDL_SetCursor(Main_Window_System_Cursor(UI_CURSOR_ARROW));
 		}
+		RISCOS_Pointer_Remove(cursor);
 		SDL_DestroyCursor(cursor);
 	}
 }
@@ -740,6 +743,12 @@ SDL_Cursor * Main_Window_System_Cursor(UICursor shape)
 	if (cursor == nullptr) {
 		cursor = SDL_CreateSystemCursor(System_Cursor_Of(shape));
 	}
+#ifdef __riscos__
+	// RISC OS's SDL has no system cursors, so the other shapes are the arrow, not no pointer.
+	if (cursor == nullptr && shape != UI_CURSOR_ARROW) {
+		return(Main_Window_System_Cursor(UI_CURSOR_ARROW));
+	}
+#endif
 	return(cursor);
 }
 
@@ -760,10 +769,12 @@ void Main_Window_Set_Arrow(SDL_Cursor * cursor)
 
 	SDL_Cursor * const previous = arrow;
 	arrow = cursor;
+	RISCOS_Pointer_Set_Arrow(cursor);
 	if (previous != nullptr && SDL_GetCursor() == previous) {
 		SDL_SetCursor(Main_Window_System_Cursor(UI_CURSOR_ARROW));
 	}
 	if (previous != nullptr) {
+		RISCOS_Pointer_Remove(previous);
 		SDL_DestroyCursor(previous);
 	}
 }

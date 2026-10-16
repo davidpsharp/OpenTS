@@ -17,6 +17,7 @@
 #include "bgfxbackend.h"
 #include "dbgprint.h"
 #include "ftimer.h"
+#include "riscospointer.h"
 #include "softscreen.h"
 
 #include <SDL3/SDL.h>
@@ -41,6 +42,7 @@ static Uint64 _TimeFrame = 0;		// converting and scaling the game frame
 static Uint64 _TimeOverlay = 0;		// drawing the UI over it, between Present and End_Frame
 static Uint64 _TimeBlit = 0;		// copying the screen to the window surface
 static Uint64 _TimeUpdate = 0;		// handing the window surface to the system
+static Uint64 _TimePointer = 0;		// drawing the pointer (RISC OS)
 static Uint64 _OverlayStart = 0;
 
 // 565 to 0xFFRRGGBB, with the low bits filled from the high ones so white stays white.
@@ -292,6 +294,9 @@ void Backend_End_Frame(void)
 		_TimeOverlay += SDL_GetTicksNS() - _OverlayStart;
 		_OverlayStart = 0;
 	}
+	Uint64 const pointerstart = SDL_GetTicksNS();
+	RISCOS_Pointer_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift);
+	_TimePointer += SDL_GetTicksNS() - pointerstart;
 
 	// OPENTS_SHOT=<file.bmp> saves the screen every 60 frames, for checking a run unseen.
 	static char const * const shot = getenv("OPENTS_SHOT");
@@ -313,9 +318,9 @@ void Backend_End_Frame(void)
 		if (now - start >= 5000) {
 			double const seconds = (double)(now - start) / 1000.0;
 			double const per = count > 0 ? 1.0e6 * count : 1.0;
-			DebugString("Video: %.1f frames a second presented, %.1f game frames; ms a frame: scale %.2f, UI %.2f, blit %.2f, system %.2f\n",
-				count / seconds, (Frame - startframe) / seconds, _TimeFrame / per, _TimeOverlay / per, _TimeBlit / per, _TimeUpdate / per);
-			_TimeFrame = _TimeOverlay = _TimeBlit = _TimeUpdate = 0;
+			DebugString("Video: %.1f frames a second presented, %.1f game frames; ms a frame: scale %.2f, UI %.2f, pointer %.3f, blit %.2f, system %.2f\n",
+				count / seconds, (Frame - startframe) / seconds, _TimeFrame / per, _TimeOverlay / per, _TimePointer / per, _TimeBlit / per, _TimeUpdate / per);
+			_TimeFrame = _TimeOverlay = _TimePointer = _TimeBlit = _TimeUpdate = 0;
 			start = now;
 			count = 0;
 			startframe = Frame;
