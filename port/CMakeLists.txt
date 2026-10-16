@@ -151,6 +151,10 @@ target_compile_options(OpenTS PRIVATE
     -fsigned-char
     -fno-strict-aliasing
     -fwrapv
+    # No fused multiply-adds, which round differently: on Apple silicon they made a game part
+    # from the same game on a Pi (which has none) after a few thousand frames, and network
+    # games need the machines to agree exactly.
+    -ffp-contract=off
     -Wno-everything
     "$<$<COMPILE_LANGUAGE:CXX>:-fms-extensions;-fdeclspec;SHELL:-include ${CMAKE_CURRENT_SOURCE_DIR}/compat/msvcrt.h>")
 # miniz for writepng.cpp comes from bimg, which this build does not otherwise use.
