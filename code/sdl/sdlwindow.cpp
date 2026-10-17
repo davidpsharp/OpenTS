@@ -15,6 +15,7 @@
 #include "sdl/sdlevents.h"
 #include "sdl/sdlinput.h"
 #include "sdl/sdlkeys.h"
+#include "video.h"
 #include "win.h"
 
 #include <commctrl.h>
@@ -574,6 +575,14 @@ void Main_Window_Pump_Events(void)
 			Handle_SDL_Event(sdlevent);
 		}
 	}
+
+#ifndef _WIN32
+	// RISC OS draws the pointer into the frame, so a screen that is otherwise still is shown
+	// again when the pointer moves or changes.
+	if (RISCOS_Pointer_Changed()) {
+		Video_Mark_Overlay_Dirty();
+	}
+#endif
 }
 
 

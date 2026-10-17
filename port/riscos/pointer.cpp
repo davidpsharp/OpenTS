@@ -61,8 +61,12 @@ void RISCOS_Pointer_Set_Arrow(SDL_Cursor * cursor)
 	_Arrow = cursor;
 }
 
-// The picture to draw now, or none (and then the desktop's pointer stays as SDL left it).
-static PointerPicture const * Current_Picture(void)
+// What the pointer was last drawn as, and where.
+static PointerPicture const * _DrawnPicture = nullptr;
+static float _DrawnX = -1.0f;
+static float _DrawnY = -1.0f;
+
+static PointerPicture const * Find_Picture(void)
 {
 	if (!SDL_CursorVisible()) {
 		return(nullptr);
@@ -71,12 +75,34 @@ static PointerPicture const * Current_Picture(void)
 	if (found == _Pictures.end()) {
 		found = _Pictures.find(_Arrow);
 	}
-	if (found == _Pictures.end()) {
+	return(found != _Pictures.end() ? &found->second : nullptr);
+}
+
+static void Note_Drawn(PointerPicture const * picture)
+{
+	_DrawnPicture = picture;
+	SDL_GetMouseState(&_DrawnX, &_DrawnY);
+}
+
+bool RISCOS_Pointer_Changed(void)
+{
+	float x = 0.0f;
+	float y = 0.0f;
+	SDL_GetMouseState(&x, &y);
+	return(Find_Picture() != _DrawnPicture || (_DrawnPicture != nullptr && (x != _DrawnX || y != _DrawnY)));
+}
+
+// The picture to draw now, or none (and then the desktop's pointer stays as SDL left it).
+static PointerPicture const * Current_Picture(void)
+{
+	PointerPicture const * picture = Find_Picture();
+	Note_Drawn(picture);
+	if (picture == nullptr) {
 		return(nullptr);
 	}
 	// SDL turns the hardware pointer on whenever it shows a cursor; this one is drawn instead.
 	_kernel_osbyte(106, 0, 0);
-	return(&found->second);
+	return(picture);
 }
 
 // 32-bit pixels, red at bit RedShift and blue at bit BlueShift.
