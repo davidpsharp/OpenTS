@@ -5321,8 +5321,8 @@ static void Claim_Free_Key(KeyNumType key, CommandClass const * command)
 /// Builds the list of every command the player may invoke.
 /// This routine is called once during startup to populate the command list, and then binds
 /// the hotkeys to it. The delete and escape keys are claimed afterwards, so that no
-/// keyboard file can take them away from the player; the chat keys are claimed only when
-/// the file left them free.
+/// keyboard file can take them away from the player; the chat keys and the screen capture
+/// key (Insert) are claimed only when the file left them free.
 /// </summary>
 static void Init_Commands(void)
 {
@@ -5451,7 +5451,8 @@ static void Init_Commands(void)
 
 	AllCommands.Add(new WaypointCommandClass);
 
-	AllCommands.Add(new ScreenCaptureCommandClass);
+	const CommandClass * capturecmd = new ScreenCaptureCommandClass;
+	AllCommands.Add(capturecmd);
 
 	AllCommands.Add(new PrevThemeCommandClass);
 	AllCommands.Add(new NextThemeCommandClass);
@@ -5497,6 +5498,7 @@ static void Init_Commands(void)
 
 	Claim_Free_Key(KN_RETURN, chatallcmd);
 	Claim_Free_Key(KN_BACKSPACE, chatteamcmd);
+	Claim_Free_Key(KN_INSERT, capturecmd);
 }
 
 
