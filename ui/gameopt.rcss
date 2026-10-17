@@ -54,6 +54,29 @@ button
 	margin-top: 6dp;
 }
 
+/* Desktop, on RISC OS: one more button, so the panel is a button taller. */
+#desktop
+{
+	margin-top: 5dp;
+}
+
+.desktop #reveal
+{
+	height: 151dp;
+	margin-top: -75dp;
+}
+
+.solo.desktop #reveal
+{
+	height: 255dp;
+	margin-top: -127dp;
+}
+
+.solo #desktop
+{
+	margin-top: 3dp;
+}
+
 .solo #briefing, .solo #abort
 {
 	margin-top: 4dp;

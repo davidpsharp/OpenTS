@@ -71,6 +71,10 @@ void UI_Game_Options_State(UIGameOptionsState & state)
 	state = UIGameOptionsState();
 	state.Solo = (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH);
 	state.Internet = (Session.Type == GAME_INTERNET);
+#ifdef __riscos__
+	// The internet layout has no room for it; Shift+F12 still works there.
+	state.Desktop = !state.Internet;
+#endif
 
 	if (state.Solo) {
 		bool const present = LoadOptionsClass().Files_Present();

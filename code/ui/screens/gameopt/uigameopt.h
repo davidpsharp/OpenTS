@@ -27,6 +27,7 @@ enum UIGameOptionsChoice
 	UI_GAME_OPTIONS_LOAD,
 	UI_GAME_OPTIONS_DELETE,
 	UI_GAME_OPTIONS_ABORT,
+	UI_GAME_OPTIONS_DESKTOP,
 };
 
 
@@ -52,6 +53,8 @@ struct UIGameOptionsState
 	bool LoadEnabled = true;
 	bool SaveEnabled = true;
 	bool DeleteEnabled = true;
+	// The game can step back to the desktop it runs on, paused (RISC OS, as Shift+F12 does).
+	bool Desktop = false;
 
 	int Speed = 0;
 	std::vector<std::string> SpeedNames;

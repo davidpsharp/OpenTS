@@ -44,6 +44,9 @@
 #include "scenario.h"
 #include "ui/screens/abort/uiabort.h"
 #include "ui/screens/gameopt/uigameopt.h"
+#ifdef __riscos__
+#include "sdl/sdlwindow.h"
+#endif
 
 
 /// <summary>
@@ -90,6 +93,12 @@ void Game_Options_Dialog(void)
 	}
 
 	Map.Flag_To_Redraw(GS_REDRAW_ALL);
+
+#ifdef __riscos__
+	if (choice == UI_GAME_OPTIONS_DESKTOP) {
+		Main_Window_Leave_For_Desktop();
+	}
+#endif
 }
 
 

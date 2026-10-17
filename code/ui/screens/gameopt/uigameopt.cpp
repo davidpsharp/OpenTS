@@ -58,6 +58,11 @@ void UIGameOptionsPresenterClass::Execute(UIIntent const & intent)
 	} else if (intent.Name == "abort") {
 		Choice = UI_GAME_OPTIONS_ABORT;
 		Result = UI_RESULT_ACCEPTED;
+	} else if (intent.Name == "desktop") {
+		if (State.Desktop) {
+			Choice = UI_GAME_OPTIONS_DESKTOP;
+			Result = UI_RESULT_ACCEPTED;
+		}
 	} else if (intent.Name == "speed") {
 		State.Speed = intent.Value;
 		SpeedChanged = true;
@@ -108,6 +113,7 @@ class UIGameOptionsViewClass : public UIRmlViewClass
 				&& model.Bind("loadenabled", &state.LoadEnabled)
 				&& model.Bind("saveenabled", &state.SaveEnabled)
 				&& model.Bind("deleteenabled", &state.DeleteEnabled)
+				&& model.Bind("desktop", &state.Desktop)
 				&& model.Bind("speed", &state.Speed)
 				&& model.Bind("speedname", &state.SpeedName)
 				&& model.Bind("connection", &state.Connection)
