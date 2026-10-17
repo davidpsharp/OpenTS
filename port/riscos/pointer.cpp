@@ -86,10 +86,22 @@ static void Note_Drawn(PointerPicture const * picture)
 
 bool RISCOS_Pointer_Changed(void)
 {
+	PointerPicture const * const picture = Find_Picture();
+	// SDL turns the desktop's pointer on whenever it shows a cursor, which it does on its own as
+	// well (the mouse coming into the window, for one), and a still screen may not be drawn
+	// again for a while: so it is turned off between frames too, a hundred times a second.
+	if (picture != nullptr) {
+		static Uint64 lastoff = 0;
+		Uint64 const now = SDL_GetTicks();
+		if (now - lastoff >= 10) {
+			lastoff = now;
+			_kernel_osbyte(106, 0, 0);
+		}
+	}
 	float x = 0.0f;
 	float y = 0.0f;
 	SDL_GetMouseState(&x, &y);
-	return(Find_Picture() != _DrawnPicture || (_DrawnPicture != nullptr && (x != _DrawnX || y != _DrawnY)));
+	return(picture != _DrawnPicture || (_DrawnPicture != nullptr && (x != _DrawnX || y != _DrawnY)));
 }
 
 // The picture to draw now, or none (and then the desktop's pointer stays as SDL left it).

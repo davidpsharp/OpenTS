@@ -36,6 +36,7 @@ static bool _Direct = false;	// _Soft is the window surface itself this frame
 static int _FrameWidth = 0;
 static int _FrameHeight = 0;
 static std::vector<std::uint32_t> _Frame; // the last uploaded game frame, converted
+static unsigned _FrameVersion = 0;			// counts its changes, so a scaling of it can be kept
 static BackendScaleMode _ScaleMode = BACKEND_SCALE_NEAREST;
 
 // For OPENTS_FPS: nanoseconds spent in each part of presenting, since the last report.
@@ -178,6 +179,7 @@ bool Backend_Set_Frame_Size(int width, int height)
 	_FrameWidth = width;
 	_FrameHeight = height;
 	_Frame.assign((size_t)width * (size_t)height, 0xFF000000u);
+	_FrameVersion++;
 	_Pixels565 = nullptr;
 	_FrameStale = false;
 	return(true);
@@ -208,10 +210,121 @@ static void Convert_Frame_To(std::uint32_t * dest, int destpitch, void const * p
 static void Convert_Frame(void const * pixels, int pitch)
 {
 	Convert_Frame_To(_Frame.data(), _FrameWidth, pixels, pitch);
+	_FrameVersion++;
 }
 
 
-// Nearest-neighbour scaling into the destination rectangle, which is clipped to the screen.
+// Where each destination column or row samples the frame for smooth scaling: the frame pixel
+// to its left (or above) and the weight, out of 256, of the one after it.
+struct SmoothTap
+{
+	int Index;
+	unsigned Weight;
+};
+
+static void Smooth_Taps(std::vector<SmoothTap> & taps, int sourcesize, int destsize)
+{
+	taps.resize((size_t)destsize);
+	for (int d = 0; d < destsize; d++) {
+		// The middle of the destination pixel, in frame pixels (16.16).
+		std::int64_t const centre = (((std::int64_t)d * 2 + 1) * sourcesize * 65536) / ((std::int64_t)destsize * 2) - 32768;
+		int index = (int)(centre >> 16);
+		unsigned weight = (unsigned)((centre >> 8) & 0xFF);
+		if (centre < 0) {
+			index = 0;
+			weight = 0;
+		}
+		if (index >= sourcesize - 1) {
+			index = sourcesize - 1;
+			weight = 0;
+		}
+		taps[(size_t)d] = {index, weight};
+	}
+}
+
+// Blends two 0xFFxxxxxx pixels, weight out of 256 for the second, a channel pair at a time.
+static inline std::uint32_t Blend(std::uint32_t first, std::uint32_t second, unsigned weight)
+{
+	std::uint32_t const outer = (((first & 0x00FF00FFu) * (256 - weight) + (second & 0x00FF00FFu) * weight) >> 8) & 0x00FF00FFu;
+	std::uint32_t const middle = (((first & 0x0000FF00u) * (256 - weight) + (second & 0x0000FF00u) * weight) >> 8) & 0x0000FF00u;
+	return(0xFF000000u | outer | middle);
+}
+
+// Bilinear scaling, as the Pi's display scales frames through its overlay, so that a frame drawn
+// the usual way (with a menu over it) looks like the ones around it. Each frame row is
+// stretched across once and kept while the destination rows between it and the next use it.
+static void Scale_Frame_Smooth(int destx, int desty, int destwidth, int destheight, int x0, int y0, int x1, int y1)
+{
+	// The last scaling, kept for as long as the frame and the rectangle stay the same (a menu
+	// over a paused game redraws the screen with the same frame under it every time).
+	static std::vector<std::uint32_t> kept;
+	static unsigned keptversion = 0;
+	static int keptrect[6] = {};
+	int const rect[6] = {x0, y0, x1, y1, destwidth, destheight};
+	size_t const keptwidth = (size_t)(x1 - x0);
+	bool const same = !kept.empty() && keptversion == _FrameVersion && std::equal(rect, rect + 6, keptrect);
+	if (same) {
+		for (int y = y0; y < y1; y++) {
+			std::memcpy(_Soft.Pixels + (size_t)y * (size_t)_Soft.Pitch + x0, &kept[(size_t)(y - y0) * keptwidth], keptwidth * 4);
+		}
+		return;
+	}
+
+	static std::vector<SmoothTap> columns, rows;
+	static std::vector<std::uint32_t> upper, lower;
+	Smooth_Taps(columns, _FrameWidth, destwidth);
+	Smooth_Taps(rows, _FrameHeight, destheight);
+	upper.resize((size_t)destwidth);
+	lower.resize((size_t)destwidth);
+	int upperrow = -1, lowerrow = -1;
+
+	auto stretch = [&](int row, std::vector<std::uint32_t> & line) {
+		std::uint32_t const * source = &_Frame[(size_t)row * (size_t)_FrameWidth];
+		int const last = _FrameWidth - 1;
+		for (int x = x0 - destx; x < x1 - destx; x++) {
+			SmoothTap const tap = columns[(size_t)x];
+			line[(size_t)x] = tap.Weight == 0 ? source[tap.Index] : Blend(source[tap.Index], source[std::min(tap.Index + 1, last)], tap.Weight);
+		}
+	};
+
+	for (int y = y0; y < y1; y++) {
+		SmoothTap const tap = rows[(size_t)(y - desty)];
+		int const next = std::min(tap.Index + 1, _FrameHeight - 1);
+		if (upperrow != tap.Index) {
+			if (lowerrow == tap.Index) {
+				std::swap(upper, lower);
+				upperrow = lowerrow;
+				lowerrow = -1;
+			} else {
+				stretch(tap.Index, upper);
+				upperrow = tap.Index;
+			}
+		}
+		std::uint32_t * dest = _Soft.Pixels + (size_t)y * (size_t)_Soft.Pitch;
+		if (tap.Weight == 0) {
+			std::memcpy(dest + x0, upper.data() + (x0 - destx), (size_t)(x1 - x0) * 4);
+			continue;
+		}
+		if (lowerrow != next) {
+			stretch(next, lower);
+			lowerrow = next;
+		}
+		for (int x = x0; x < x1; x++) {
+			dest[x] = Blend(upper[(size_t)(x - destx)], lower[(size_t)(x - destx)], tap.Weight);
+		}
+	}
+
+	kept.resize(keptwidth * (size_t)(y1 - y0));
+	for (int y = y0; y < y1; y++) {
+		std::memcpy(&kept[(size_t)(y - y0) * keptwidth], _Soft.Pixels + (size_t)y * (size_t)_Soft.Pitch + x0, keptwidth * 4);
+	}
+	keptversion = _FrameVersion;
+	std::copy(rect, rect + 6, keptrect);
+}
+
+
+// Scaling into the destination rectangle, which is clipped to the screen: nearest-neighbour, or
+// smooth where frames otherwise go through the Pi's overlay.
 static void Scale_Frame(int destx, int desty, int destwidth, int destheight)
 {
 	if (destwidth <= 0 || destheight <= 0 || _FrameWidth <= 0 || _FrameHeight <= 0) {
@@ -222,6 +335,11 @@ static void Scale_Frame(int destx, int desty, int destwidth, int destheight)
 	int const y0 = desty < 0 ? 0 : desty;
 	int const x1 = (destx + destwidth > _Soft.Width) ? _Soft.Width : destx + destwidth;
 	int const y1 = (desty + destheight > _Soft.Height) ? _Soft.Height : desty + destheight;
+
+	if ((destwidth != _FrameWidth || destheight != _FrameHeight) && RISCOS_Overlay_Available()) {
+		Scale_Frame_Smooth(destx, desty, destwidth, destheight, x0, y0, x1, y1);
+		return;
+	}
 
 	std::uint32_t const stepx = (std::uint32_t)(((std::uint64_t)_FrameWidth << 16) / (std::uint64_t)destwidth);
 	std::uint32_t const stepy = (std::uint32_t)(((std::uint64_t)_FrameHeight << 16) / (std::uint64_t)destheight);
