@@ -932,7 +932,8 @@ void RISCOS_Desktop_Start(bool wait)
 	if (no_data) {
 		fprintf(stderr, "desktop: no game data (%s)\n", Data_Problem().c_str());
 	}
-	if (IconHandle >= 0 && (wait || no_data) && getenv("OPENTS_NODESKTOP") == nullptr) {
+	// OPENTS_NODESKTOP (for tests) skips the wait, but never when there is no data to play with.
+	if (IconHandle >= 0 && (no_data || (wait && getenv("OPENTS_NODESKTOP") == nullptr))) {
 		fprintf(stderr, "desktop: waiting for a click on the icon bar\n");
 		Wait_For_Icon_Click();
 	}
