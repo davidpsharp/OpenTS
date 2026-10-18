@@ -172,6 +172,7 @@ if(RISCOS)
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/pointer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/overlay.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/desktop.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/riscos/autosize.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/riscos/aeabi.c")
 endif()
 

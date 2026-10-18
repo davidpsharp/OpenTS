@@ -998,17 +998,17 @@ void Test_Display_Presenter(void)
 	{
 		FakeClockClass clock;
 		UIConfirmModePresenterClass presenter(clock);
-		Check(presenter.Seconds == 10, "the confirmation starts with the full ten seconds");
+		Check(presenter.Seconds == 20, "the confirmation starts with the full twenty seconds");
 
 		clock.Now = 5000;
 		presenter.Refresh();
-		Check(presenter.Seconds == 10 && !presenter.Result.has_value(), "the clock starts at the first refresh");
+		Check(presenter.Seconds == 20 && !presenter.Result.has_value(), "the clock starts at the first refresh");
 
-		clock.Now = 5000 + 8100;
+		clock.Now = 5000 + 18100;
 		presenter.Refresh();
 		Check(presenter.Seconds == 2 && !presenter.Result.has_value(), "the seconds left count down");
 
-		clock.Now = 5000 + 10000;
+		clock.Now = 5000 + 20000;
 		presenter.Refresh();
 		Check(presenter.Result.has_value() && *presenter.Result == UI_RESULT_CANCELLED && presenter.TimedOut && presenter.Seconds == 0, "silence cancels the confirmation when the timeout passes");
 	}
@@ -2473,10 +2473,10 @@ void Test_Display_Screen(Rml::Context & context, CountingSystemInterfaceClass & 
 		Rml::Element * prompt = document->GetElementById("text");
 		Check(prompt != nullptr && prompt->GetComputedValues().font_family() == "dlgsys", "the display confirmation uses the dialog bitmap font family");
 		Rml::Element * seconds = document->GetElementById("seconds");
-		Check(seconds != nullptr && seconds->GetInnerRML() == "10", "the confirmation shows the ten seconds left");
+		Check(seconds != nullptr && seconds->GetInnerRML() == "20", "the confirmation shows the twenty seconds left");
 		Check(seconds != nullptr && seconds->GetComputedValues().font_family() == "dlgsys", "the display countdown inherits the dialog bitmap font family");
 
-		clock.Now = 7500;
+		clock.Now = 17500;
 		presenter.Refresh();
 		view->Sync();
 		context.Update();
@@ -2506,7 +2506,7 @@ void Test_Display_Screen(Rml::Context & context, CountingSystemInterfaceClass & 
 		view->Sync();
 		context.Update();
 
-		clock.Now = 10000;
+		clock.Now = UIConfirmModePresenterClass::DEFAULT_TIMEOUT;
 		presenter.Refresh();
 		presenter.Drain();
 		view->Sync();
