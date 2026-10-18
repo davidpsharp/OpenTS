@@ -109,6 +109,9 @@
 #include "psystype.h"
 #include "ptype.h"
 #include "rules.h"
+#ifdef __riscos__
+#include "riscosautosize.h"
+#endif
 #include "scenario.h"
 #include "scheme.h"
 #include "script.h"
@@ -581,6 +584,11 @@ int CALLBACK WinMain ( HINSTANCE instance , HINSTANCE , char * , int )
 				return(EXIT_FAILURE);
 			}
 		}
+
+#ifdef __riscos__
+		// Unless the player chose one, the size suits the desktop and this machine.
+		RISCOS_Auto_Size(ConfigINI, DeploymentConfig.SettingsFile.c_str(), Options.ScreenWidth, Options.ScreenHeight);
+#endif
 
 		if (Options.ScreenWidth == -1 || Options.ScreenHeight == -1) {
 			Options.ScreenWidth = 640;
