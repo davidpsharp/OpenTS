@@ -545,6 +545,20 @@ int CALLBACK WinMain ( HINSTANCE instance , HINSTANCE , char * , int )
 		}
 		uidirectory += "ui\\";
 		CDFileClass::Add_Search_Drive(uidirectory.c_str());
+#ifdef __riscos__
+		/*
+		 * On RISC OS the files installed from the CD images are in the gamedata directory in
+		 * !OpenTS (see port/riscos/tools/tsprep.c), so that deleting it uninstalls them.
+		 * After ui: with gamedata before it, the ui files weren't found.
+		 */
+		{
+			std::string gamedata = path;
+			if (!gamedata.empty() && gamedata.back() != '\\' && gamedata.back() != '/') {
+				gamedata += '\\';
+			}
+			CDFileClass::Add_Search_Drive((gamedata + "gamedata\\").c_str());
+		}
+#endif
 
 		// The recording's name was settled during static initialization, before there was
 		// anywhere for a player's files to go. Naming it again settles it where it belongs.
