@@ -65,7 +65,7 @@ class UIConfirmModePresenterClass : public UIPresenterClass
 {
 	public:
 		enum {
-			DEFAULT_TIMEOUT = 10000
+			DEFAULT_TIMEOUT = 20000
 		};
 
 		UIConfirmModePresenterClass(UIClockClass & clock, int timeout = DEFAULT_TIMEOUT);
