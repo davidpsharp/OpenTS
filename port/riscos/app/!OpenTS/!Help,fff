@@ -25,7 +25,8 @@ The main menu shows the version and the build it was made from.
 Requirements
 ------------
 
-  * A Raspberry Pi 4 with RISC OS 5. It has been tested on RISC OS 5.30.
+  * A Raspberry Pi with RISC OS 5, tested on RISC OS 5.30. A Pi 4 is
+    best; it also runs on a Pi 2 and a Pi 3, more slowly.
   * These modules, which come with RISC OS 5 or from PackMan, in !System:
       SharedUnixLibrary 1.16 or later
       ARMEABISupport 1.03 or later
@@ -142,7 +143,11 @@ running the game:
 Known issues in this preview:
 
   * The end credits' text isn't drawn.
-  * Network play has only been tried between Pis on a local network (LAN).
+  * Network play has only been tried between two Pis on a local network
+    (LAN).
+  * A network game against OpenTS on another kind of computer (the Mac
+    build has been tried) goes out of sync after a while, so play RISC OS
+    against RISC OS.
   * The World Domination Tour needs Westwood's old online service, which
     has closed, so it doesn't start.
 
