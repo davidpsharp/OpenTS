@@ -12,6 +12,8 @@
 **
 **   tsprep [-search <dir>] [-dest <dir>] [-nomovies] [-force] [<image>...]
 **   tsprep -check -dest <dir>
+**   tsprep -window -images <variable> -dest <dir> [-nomovies]
+**   tsprep -identify <file>
 **
 ** It reads the ISO 9660 images directly, so no CD drive is needed. Each image is recognised
 ** by its contents (the GDI and Nod discs both hold INSTALL/TIBSUN.MIX, with MAPS01.MIX or
@@ -27,6 +29,13 @@
 ** -check only checks that the files the game needs are all there at their sizes (no
 ** checksums, so it takes a moment): !Run does this before every game. The first problem
 ** goes in OpenTS$DataProblem, which is unset when all is well; the exit code is 0 or 1.
+**
+** -window is how the game runs it, in a task window, when CD images are dragged onto its icon:
+** the images are listed one per line in the variable -images names; the file being copied goes
+** in OpenTS$Installing; afterwards the files are checked as by -check. The messages are held
+** back (Say), since a task window opens at the first character printed: when all went well
+** nothing is printed and the window never appears. Otherwise they are, and it waits for a key.
+** -identify says which disc a file is (discid.h), in TSPrep$Disc and TSPrep$DiscCut.
 **
 ** Modelled on vcprep from the Vanilla Conquer RISC OS port.
 */
@@ -45,6 +54,62 @@
 #include <kernel.h>
 #include <swis.h>
 #endif
+
+#include <stdarg.h>
+#include "discid.h"
+
+/* Messages: printed, or in -window mode held until it's known whether anyone needs them. */
+static int Holding = 0;
+static char Held[64 * 1024];
+static size_t Held_Len = 0;
+
+static int Say(char const * format, ...)
+{
+	va_list args;
+	int n;
+	va_start(args, format);
+	if (Holding) {
+		n = vsnprintf(Held + Held_Len, sizeof(Held) - Held_Len, format, args);
+		if (n > 0) {
+			Held_Len += (size_t)n < sizeof(Held) - Held_Len ? (size_t)n : sizeof(Held) - Held_Len - 1;
+		}
+	} else {
+		n = vprintf(format, args);
+	}
+	va_end(args);
+	return(n);
+}
+#define printf Say
+
+static void Set_Var(char const * name, char const * value)
+{
+#ifdef __riscos__
+	if (value != NULL) {
+		_swix(OS_SetVarVal, _INR(0, 4), name, value, (int)strlen(value), 0, 4);
+	} else {
+		_swix(OS_SetVarVal, _INR(0, 4), name, NULL, -1, 0, 0);
+	}
+#else
+	fprintf(stdout, "%s: %s\n", name, value != NULL ? value : "(unset)");
+#endif
+}
+
+static char * Read_Var(char const * name)
+{
+#ifdef __riscos__
+	static char buf[4096];
+	int len = 0;
+	if (_swix(OS_ReadVarVal, _INR(0, 4) | _OUT(2), name, buf, (int)sizeof(buf) - 1, 0, 0, &len) != NULL) {
+		return(NULL);
+	}
+	buf[len] = '\0';
+	return(buf);
+#else
+	return(getenv(name));
+#endif
+}
+
+static int Window_Mode = 0;
 
 
 #define SECTOR 2048
@@ -266,6 +331,9 @@ static void Install(FILE * image, FileType const * file, int force)
 
 	printf("  %-14s %3lu MB ", file->name, (unsigned long)((size + 524288) >> 20));
 	fflush(stdout);
+	if (Window_Mode) {
+		Set_Var("OpenTS$Installing", file->name);
+	}
 
 	remove(temp);
 	Preallocate(temp, size);
@@ -298,7 +366,7 @@ static void Install(FILE * image, FileType const * file, int force)
 		crc = Crc_Update(crc, Buffer, chunk);
 		left -= (uint32_t)chunk;
 		if (++dots % 16 == 0) {
-			putchar('.');
+			printf(".");
 			fflush(stdout);
 		}
 	}
@@ -428,6 +496,7 @@ int main(int argc, char ** argv)
 	char const * search = NULL;
 	char const * dest = ".";
 	int movies = 1, force = 0, check = 0;
+	char const * images_var = NULL;
 	char * images[64];
 	int image_count = 0;
 
@@ -437,8 +506,33 @@ int main(int argc, char ** argv)
 		else if (strcmp(argv[i], "-nomovies") == 0) movies = 0;
 		else if (strcmp(argv[i], "-force") == 0) force = 1;
 		else if (strcmp(argv[i], "-check") == 0) check = 1;
+		else if (strcmp(argv[i], "-window") == 0) Window_Mode = 1;
+		else if (strcmp(argv[i], "-images") == 0 && i + 1 < argc) images_var = argv[++i];
+		else if (strcmp(argv[i], "-identify") == 0 && i + 1 < argc) {
+			int cut;
+			char volume[40];
+			int d = Disc_Identify(argv[i + 1], &cut, volume, sizeof(volume));
+			Set_Var("TSPrep$Disc", d >= 0 ? Disc_Types[d].id : d == DISC_NOT_ISO ? "not-iso" : "unknown");
+			Set_Var("TSPrep$DiscCut", cut ? "1" : NULL);
+			printf("%s: %s\n", argv[i + 1], d >= 0 ? Disc_Types[d].name : d == DISC_NOT_ISO ? "not an ISO image" : "an unknown disc");
+			return(d >= 0 && !cut ? 0 : 1);
+		}
 		else if (argv[i][0] == '-') { fprintf(stderr, "tsprep: unknown option %s\n", argv[i]); return(2); }
 		else if (image_count < 64) images[image_count++] = argv[i];
+	}
+
+	if (images_var != NULL) {
+		static char list[4096];
+		char const * value = Read_Var(images_var);
+		if (value != NULL) {
+			strncpy(list, value, sizeof(list) - 1);
+			for (char * line = strtok(list, "\n"); line != NULL; line = strtok(NULL, "\n")) {
+				if (*line != '\0' && image_count < 64) images[image_count++] = line;
+			}
+		}
+	}
+	if (Window_Mode) {
+		Holding = 1;
 	}
 
 	if (check) {
@@ -555,6 +649,28 @@ int main(int argc, char ** argv)
 			printf("No Firestorm disc image was found, so only Tiberian Sun itself can be played, without\n"
 				"the Firestorm expansion. Add the Firestorm image and run Prepare again to install it.\n");
 		}
+	}
+	if (Window_Mode) {
+		Set_Var("OpenTS$Installing", NULL);
+		Problem[0] = '\0';
+		Check_Install(); /* the current directory is the destination now */
+		Report_Check();
+		if (Problems == 0 && Problem[0] == '\0') {
+			return(0); /* nothing printed: the task window never opens */
+		}
+		Holding = 0;
+		fwrite(Held, 1, Held_Len, stdout);
+		if (Problem[0] != '\0') {
+			printf("\nThe game's data is still incomplete: %s.\n", Problem);
+		}
+		printf("\nPress a key when you have read this, then close this window.\n");
+		fflush(stdout);
+#ifdef __riscos__
+		_swix(OS_ReadC, 0);
+#else
+		getchar();
+#endif
+		return(1);
 	}
 	if (Problems == 0) {
 		printf("Done. Double-click !OpenTS to play.\n");

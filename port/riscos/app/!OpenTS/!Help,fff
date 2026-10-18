@@ -62,43 +62,52 @@ The downloads are zip files (TS_GDI.zip, TS_Nod.zip and TS_Firestorm.zip),
 each holding one .iso file of about 700 MB. Unzip them first; that's
 easiest on a modern computer, since a zip and its ISO together need about
 1.3 GB. If you are short of space, install one disc at a time: unzip it,
-run Prepare, then delete the ISO before the next.
+install it, then delete the ISO before the next.
 
-The Prepare file that comes next to !OpenTS installs the data from the ISO
-files:
+To install them:
 
-  1. Put !OpenTS where you want to keep the game, and open the directory
-     containing it, so the Filer has seen it.
-  2. Copy Prepare into the directory holding the ISO files. They don't
-     need to be on the same disc as !OpenTS.
-  3. Double-click Prepare.
+  1. Put !OpenTS where you want to keep the game, and double-click it.
+     Its icon appears on the icon bar.
+  2. Drag the ISO file(s) onto that icon: several at once, or one after
+     the other. The GDI disc is needed; the Nod and Firestorm discs add
+     their campaigns.
 
-Prepare reads the ISO files directly (no CD drive or CDFS is needed),
-copies the game files into !OpenTS and checks each one against the
-freeware discs' checksums. It recognises the images by their contents,
-so it doesn't matter if RISC OS has shortened their names. Files already
-installed are skipped, so it's safe to run it again. Each file is only
-given its real name once it's right, so if Prepare is stopped part-way
-(Escape, a full disc, a power cut), running it again redoes the file it
-didn't finish.
+The game copies the data into !OpenTS, so the ISO files can be on any
+disc, and can be deleted afterwards. It reads them directly: no CD drive
+or CDFS is needed. Meanwhile a window says which file it's on, and the
+desktop carries on as usual; each disc takes a few minutes. When it has
+finished, click the icon to play.
 
-Every time the game starts, !Run checks that its files are all there at
-the right sizes (it takes a moment); if one isn't, it says which, opens
-this file and doesn't start the game. *Set OpenTS$NoDataCheck 1 skips
-that check, for game data from elsewhere.
+Each file is checked against the freeware discs' checksums as it's
+copied. If anything goes wrong, a window lists what happened. A file
+that comes out wrong, or a copy that is stopped part-way (a full disc, a
+power cut), leaves nothing that looks installed: drag the image onto the
+icon again to finish. Files already installed are skipped, so that's
+always safe, and a disc added later (the Nod disc after the GDI one, say)
+just adds its files.
 
-From the command line you can also name the images and give options:
+The game recognises each disc by its contents, and says so if it's the
+wrong one: a C&C95 (Tiberian Dawn) or Red Alert disc goes on the
+!VanillaTD or !VanillaRA icon. It spots a download that didn't finish,
+too.
 
-  *Obey SDFS::RISCOSpi.$.ISOs.Prepare -nomovies
-  *Obey SDFS::RISCOSpi.$.Prepare SDFS::RISCOSpi.$.Downloads.CD1_GDI/iso
+Each time the game starts, it checks that its files are all there at the
+right sizes (it takes a moment). Until they are, clicking the icon says
+what's missing and opens this file, instead of starting the game.
+*Set OpenTS$NoDataCheck 1 skips that check, for game data from
+elsewhere.
 
-  -nomovies  leaves out the movies (MOVIES01.MIX, MOVIES02.MIX and
-             MOVIES03.MIX, about 1.4 GB together)
-  -force     rewrites files that are already there
+To leave out the movies (MOVIES01.MIX, MOVIES02.MIX and MOVIES03.MIX,
+about 1.4 GB together), change the line "Set OpenTS$NoMovies 0" in
+!OpenTS.!Run to 1 before dragging the images. Without the movies the
+game skips them.
 
-Without the movies the game skips them. If you added the GDI disc first
-and the Nod disc later, just run Prepare again with the Nod image: the
-files already installed are skipped.
+From the command line, Utils.tsprep installs from images too, with
+-nomovies to leave out the movies and -force to rewrite files already
+there:
+
+  *WimpSlot -min 2000K -max 2000K
+  *Run <OpenTS$Dir>.Utils.tsprep -dest <OpenTS$Dir> SDFS::RISCOSpi.$.Downloads.CD1_GDI/iso
 
 If you have the game data already, from the CDs or an installed copy, you
 can copy the files into !OpenTS yourself instead: TIBSUN.MIX, MAPS01.MIX,
@@ -124,8 +133,8 @@ The desktop doesn't respond while the game is on the screen. Shift+F12,
 or Desktop in the game's Options menu, goes back to it, with the game
 paused where it was (sound too); click the icon again to carry on. In a
 network game the game carries on for the other players meanwhile. The
-icon's menu has Info and Quit. Insert saves a screenshot, as a PNG file in
-!OpenTS.Screenshots.
+icon's menu has Info, Help (this file) and Quit. Insert saves a
+screenshot, as a PNG file in !OpenTS.Screenshots.
 
 Settings are kept in !OpenTS.sun/ini. The screen size is set in its [Video]
 section. It comes set to 640x480, which the game scales to fill the screen;
