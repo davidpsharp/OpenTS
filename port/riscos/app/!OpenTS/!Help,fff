@@ -118,13 +118,15 @@ network game the game carries on for the other players meanwhile. The
 icon's menu has Info and Quit. Insert saves a screenshot, as a PNG file in
 !OpenTS.Screenshots.
 
-Settings are kept in !OpenTS.sun/ini. The screen size is set in its [Video]
-section. It comes set to 640x480, which the game scales to fill the screen;
-larger sizes show more of the map but run more slowly:
+The first time it runs, the game picks its screen size for you: the shape
+of your screen, as large as this computer can draw smoothly (it takes about
+a second to time it). The game is then scaled to fill the screen. Larger
+sizes show more of the map. To change the size, use Options, then Display,
+on the main menu; to change it during a game, save the game, change the size
+on the main menu, then load the game. To have the game pick again, for
+instance after moving it to a faster computer, set this before running it:
 
-  [Video]
-  ScreenWidth=640
-  ScreenHeight=480
+  *Set OpenTS$Retune 1
 
 Saved games are in !OpenTS.Saved Games. They can be moved between RISC OS
 and OpenTS on other computers.
