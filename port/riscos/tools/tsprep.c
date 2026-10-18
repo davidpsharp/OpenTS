@@ -11,8 +11,8 @@
 ** tsprep: installs the Tiberian Sun data from the freeware CD images.
 **
 **   tsprep [-search <dir>] [-dest <dir>] [-nomovies] [-force] [<image>...]
-**   tsprep -check -dest <dir>
-**   tsprep -window -images <variable> -dest <dir> [-nomovies]
+**   tsprep -check -dest <dir> [-old <dir>]
+**   tsprep -window -images <variable> -dest <dir> [-old <dir>] [-nomovies]
 **   tsprep -identify <file>
 **
 ** It reads the ISO 9660 images directly, so no CD drive is needed. Each image is recognised
@@ -32,7 +32,7 @@
 **
 ** -window is how the game runs it, in a task window, when CD images are dragged onto its icon:
 ** the images are listed one per line in the variable -images names; the file being copied goes
-** in OpenTS$Installing; afterwards the files are checked as by -check. The messages are held
+** in OpenTS$Installing (its name, how far it's got in per cent, and which file of how many); afterwards the files are checked as by -check. The messages are held
 ** back (Say), since a task window opens at the first character printed: when all went well
 ** nothing is printed and the window never appears. Otherwise they are, and it waits for a key.
 ** -identify says which disc a file is (discid.h), in TSPrep$Disc and TSPrep$DiscCut.
@@ -114,50 +114,12 @@ static int Window_Mode = 0;
 
 #define SECTOR 2048
 
-enum { DISC_GDI = 1, DISC_FIRESTORM = 2, DISC_NOD = 4 };
-
-typedef struct {
-	int disc;
-	char const * path;		/* on the disc, any case */
-	char const * name;		/* in the destination */
-	uint32_t size;
-	uint32_t crc;
-	int movie;				/* left out by -nomovies */
-	int if_missing;			/* never replaces a copy already there (another disc's is better) */
-} FileType;
-
-/* The Firestorm disc's copies of MULTI.MIX, LANGUAGE.DLL and SIDECD02.MIX are newer than the
-** GDI and Nod discs'. The Nod disc holds the GDI disc's TIBSUN.MIX, SCORES.MIX and MULTI.MIX
-** too, and its own campaign (MAPS02.MIX) and movies. */
-static FileType const Files[] = {
-	{ DISC_GDI, "INSTALL/TIBSUN.MIX", "TIBSUN.MIX", 75094736u, 0x948e1a19u, 0, 0 },
-	{ DISC_GDI, "MAPS01.MIX", "MAPS01.MIX", 3668236u, 0xd3e6b5d8u, 0, 0 },
-	{ DISC_GDI, "SCORES.MIX", "SCORES.MIX", 51332268u, 0x669b46b9u, 0, 0 },
-	{ DISC_GDI, "SIDECD01.MIX", "SIDECD01.MIX", 12304388u, 0x581c5f80u, 0, 0 },
-	{ DISC_GDI, "MULTI.MIX", "MULTI.MIX", 8558956u, 0x2803c630u, 0, 1 },
-	{ DISC_GDI, "MOVIES01.MIX", "MOVIES01.MIX", 489980956u, 0x190ec288u, 1, 0 },
-	{ DISC_NOD, "INSTALL/TIBSUN.MIX", "TIBSUN.MIX", 75094736u, 0x948e1a19u, 0, 0 },
-	{ DISC_NOD, "MAPS02.MIX", "MAPS02.MIX", 3503740u, 0xdddd67a8u, 0, 0 },
-	{ DISC_NOD, "SCORES.MIX", "SCORES.MIX", 51332268u, 0x669b46b9u, 0, 0 },
-	{ DISC_NOD, "SIDECD02.MIX", "SIDECD02.MIX", 11141812u, 0xe9a00880u, 0, 1 },
-	{ DISC_NOD, "MULTI.MIX", "MULTI.MIX", 8558956u, 0x2803c630u, 0, 1 },
-	{ DISC_NOD, "MOVIES02.MIX", "MOVIES02.MIX", 490656380u, 0xf2ea4a2au, 1, 0 },
-	{ DISC_FIRESTORM, "INSTALL/EXPAND01.MIX", "EXPAND01.MIX", 36972996u, 0xa2549943u, 0, 0 },
-	{ DISC_FIRESTORM, "INSTALL/LANGUAGE.DLL", "LANGUAGE.DLL", 122880u, 0x98688c5eu, 0, 0 },
-	{ DISC_FIRESTORM, "INSTALL/MULTI.MIX", "MULTI.MIX", 11960308u, 0xc462174eu, 0, 0 },
-	{ DISC_FIRESTORM, "INSTALL/WDTVOX.MIX", "WDTVOX.MIX", 2800932u, 0xb02232acu, 0, 0 },
-	{ DISC_FIRESTORM, "E01SCD01.MIX", "E01SCD01.MIX", 350116u, 0x93221a0fu, 0, 0 },
-	{ DISC_FIRESTORM, "E01SCD02.MIX", "E01SCD02.MIX", 275012u, 0xe8fbc627u, 0, 0 },
-	{ DISC_FIRESTORM, "MAPS03.MIX", "MAPS03.MIX", 3714132u, 0x6cc786a6u, 0, 0 },
-	{ DISC_FIRESTORM, "SCORES01.MIX", "SCORES01.MIX", 20079580u, 0xbee0f68bu, 0, 0 },
-	{ DISC_FIRESTORM, "SIDECD02.MIX", "SIDECD02.MIX", 11141636u, 0xff089862u, 0, 0 },
-	{ DISC_FIRESTORM, "WDT.MIX", "WDT.MIX", 11806764u, 0x9bb4c6e7u, 0, 0 },
-	{ DISC_FIRESTORM, "MOVIES03.MIX", "MOVIES03.MIX", 462369668u, 0xd1fdaaabu, 1, 0 },
-};
-#define FILE_COUNT (sizeof(Files) / sizeof(Files[0]))
+#include "tsfiles.h"
 
 static uint32_t CrcTable[256];
 static unsigned char Buffer[1 << 20];
+#define CHUNK (256 * 1024)	/* the most read and written in one go */
+static int Copying = 0, Copy_Count = 0;	/* for the progress: file Copying of Copy_Count */
 static int Problems = 0;
 
 static void Crc_Init(void)
@@ -274,23 +236,143 @@ static long File_Size(char const * path)
 	return(stat(path, &info) == 0 ? (long)info.st_size : -1);
 }
 
-/* Creates the file at its full size in one go: growing a big file a little at a time is
-** very slow on RISC OS's filing systems. */
-static void Preallocate(char const * path, uint32_t size)
+/* Where the files go, as given (on RISC OS a RISC OS name), for the calls that need it. */
+static char const * Dest_Name = ".";
+
+/* A file in the destination, by its RISC OS name: TIBSUN.MIX is TIBSUN/MIX there. */
+static void Dest_Path(char const * dir, char const * name, char * out, size_t length)
 {
-	FILE * f = fopen(path, "wb");
-	if (f == NULL) {
-		return;
-	}
 #ifdef __riscos__
-	/* Writing the last byte first sets the extent in one go. */
-	if (size > 0 && fseek(f, (long)size - 1, SEEK_SET) == 0) {
-		fputc(0, f);
+	snprintf(out, length, "%s.%s", dir, name);
+	for (char * p = out + strlen(dir) + 1; *p != '\0'; p++) {
+		if (*p == '.') *p = '/';
 	}
 #else
-	(void)size;
+	snprintf(out, length, "%s/%s", dir, name);
 #endif
-	fclose(f);
+}
+
+/*
+** The file being written. On RISC OS it goes through the file system's own calls: OS_Args 6
+** reserves its whole size at once (growing a big file a little at a time is slow on FileCore),
+** without setting its length, which would fill it with zeros in one call that holds up the
+** whole desktop (3.8 s for TIBSUN.MIX on a USB drive on a Pi 4). Each write is a quarter of a
+** megabyte, so none of them holds up the desktop for long either.
+*/
+typedef struct {
+	FILE * file;
+	int handle;
+} OutFile;
+
+static int Out_Open(OutFile * out, char const * name, uint32_t size)
+{
+	out->file = NULL;
+	out->handle = 0;
+#ifdef __riscos__
+	char path[1024];
+	Dest_Path(Dest_Name, name, path, sizeof(path));
+	if (_swix(OS_Find, _INR(0, 1) | _OUT(0), 0x83, path, &out->handle) != NULL || out->handle == 0) {
+		out->handle = 0;
+		return(0);
+	}
+	_swix(OS_Args, _INR(0, 2), 6, out->handle, (int)size);
+	return(1);
+#else
+	(void)size;
+	char path[1024];
+	Dest_Path(Dest_Name, name, path, sizeof(path));
+	out->file = fopen(path, "wb");
+	return(out->file != NULL);
+#endif
+}
+
+static int Out_Write(OutFile * out, void const * data, size_t length)
+{
+#ifdef __riscos__
+	int left = 0;
+	return(_swix(OS_GBPB, _INR(0, 3) | _OUT(3), 2, out->handle, data, (int)length, &left) == NULL && left == 0);
+#else
+	return(fwrite(data, 1, length, out->file) == length);
+#endif
+}
+
+static int Out_Close(OutFile * out)
+{
+#ifdef __riscos__
+	int ok = out->handle != 0 && _swix(OS_Find, _INR(0, 1), 0, out->handle) == NULL;
+	out->handle = 0;
+	return(ok);
+#else
+	int ok = out->file != NULL && fclose(out->file) == 0;
+	out->file = NULL;
+	return(ok);
+#endif
+}
+
+/*
+** Files in the destination are always named in full: tsprep never changes the current
+** directory, because on RISC OS that's the whole machine's, and while it runs in a task
+** window the game (and every other program) would find theirs changed under them.
+*/
+static long Dest_Size(char const * name)
+{
+	char path[1024];
+	Dest_Path(Dest_Name, name, path, sizeof(path));
+#ifdef __riscos__
+	int type = 0, length = 0;
+	if (_swix(OS_File, _INR(0, 1) | _OUT(0) | _OUT(4), 17, path, &type, &length) != NULL || type != 1) {
+		return(-1);
+	}
+	return((long)(unsigned)length);
+#else
+	return(File_Size(path));
+#endif
+}
+
+static void Dest_Remove(char const * name)
+{
+	char path[1024];
+	Dest_Path(Dest_Name, name, path, sizeof(path));
+#ifdef __riscos__
+	_swix(OS_File, _INR(0, 1), 6, path);
+#else
+	remove(path);
+#endif
+}
+
+static int Dest_Rename(char const * from, char const * to)
+{
+	char a[1024], b[1024];
+	Dest_Path(Dest_Name, from, a, sizeof(a));
+	Dest_Path(Dest_Name, to, b, sizeof(b));
+#ifdef __riscos__
+	return(_swix(OS_FSControl, _INR(0, 2), 25, a, b) == NULL);
+#else
+	return(rename(a, b) == 0);
+#endif
+}
+
+static int Dest_Exists(void)
+{
+#ifdef __riscos__
+	int type = 0;
+	return(_swix(OS_File, _INR(0, 1) | _OUT(0), 17, Dest_Name, &type) == NULL && type == 2);
+#else
+	struct stat info;
+	return(stat(Dest_Name, &info) == 0 && S_ISDIR(info.st_mode));
+#endif
+}
+
+/* Every installed file is a Data file (&FFD), the INI and DLL files too. */
+static void Set_Data_Type(char const * name)
+{
+#ifdef __riscos__
+	char path[1024];
+	Dest_Path(Dest_Name, name, path, sizeof(path));
+	_swix(OS_File, _INR(0, 2), 18, path, 0xFFD);
+#else
+	(void)name;
+#endif
 }
 
 /* The temporary name a file is written under: TIBSUN.MIX becomes TIBSUN.TMP, in the same
@@ -304,14 +386,21 @@ static void Temp_Name(char const * name, char * out, size_t length)
 	}
 }
 
+/* Whether Install would copy a file: not when it's already there at its size (or at all, for
+** a file another disc's copy of is better). */
+static int Will_Install(FileType const * file, int force)
+{
+	long const existing = Dest_Size(file->name);
+	return(!(existing >= 0 && (file->if_missing || (!force && existing == (long)file->size))));
+}
+
 static void Install(FILE * image, FileType const * file, int force)
 {
 	char const * target = file->name;
 	char temp[32];
 	Temp_Name(file->name, temp, sizeof(temp));
 
-	long const existing = File_Size(target);
-	if (existing >= 0 && (file->if_missing || (!force && existing == (long)file->size))) {
+	if (!Will_Install(file, force)) {
 		printf("  %-14s already there\n", file->name);
 		return;
 	}
@@ -335,59 +424,70 @@ static void Install(FILE * image, FileType const * file, int force)
 		Set_Var("OpenTS$Installing", file->name);
 	}
 
-	remove(temp);
-	Preallocate(temp, size);
-	FILE * out = fopen(temp, "r+b");
-	if (out == NULL || fseek(image, (long)lba * SECTOR, SEEK_SET) != 0) {
+	Dest_Remove(temp);
+	OutFile out;
+	if (!Out_Open(&out, temp, size) || fseek(image, (long)lba * SECTOR, SEEK_SET) != 0) {
 		printf("can't be written: %s\n", strerror(errno));
 		Problems++;
-		if (out != NULL) fclose(out);
-		remove(temp);
+		Out_Close(&out);
+		Dest_Remove(temp);
 		return;
 	}
 
+	Copying++;
 	uint32_t crc = 0xffffffffu, left = size, dots = 0;
+	int shown = -1;
 	while (left > 0) {
-		size_t const chunk = left < sizeof(Buffer) ? left : sizeof(Buffer);
+		if (Window_Mode) {
+			int const percent = (int)(((uint64_t)(size - left) * 100) / size);
+			if (percent != shown) {
+				char progress[80];
+				snprintf(progress, sizeof(progress), "%s %d %d %d", file->name, percent, Copying, Copy_Count);
+				Set_Var("OpenTS$Installing", progress);
+				shown = percent;
+			}
+		}
+		size_t const chunk = left < CHUNK ? left : CHUNK;
 		if (fread(Buffer, 1, chunk, image) != chunk) {
 			printf("\n    the image ended early; not installed\n");
 			Problems++;
-			fclose(out);
-			remove(temp);
+			Out_Close(&out);
+			Dest_Remove(temp);
 			return;
 		}
-		if (fwrite(Buffer, 1, chunk, out) != chunk) {
+		if (!Out_Write(&out, Buffer, chunk)) {
 			printf("\n    writing failed: %s (is the disc full?); not installed\n", strerror(errno));
 			Problems++;
-			fclose(out);
-			remove(temp);
+			Out_Close(&out);
+			Dest_Remove(temp);
 			return;
 		}
 		crc = Crc_Update(crc, Buffer, chunk);
 		left -= (uint32_t)chunk;
-		if (++dots % 16 == 0) {
+		if (++dots % 64 == 0) {
 			printf(".");
 			fflush(stdout);
 		}
 	}
-	if (fclose(out) != 0) {
+	if (!Out_Close(&out)) {
 		printf(" writing failed: %s; not installed\n", strerror(errno));
 		Problems++;
-		remove(temp);
+		Dest_Remove(temp);
 		return;
 	}
 	crc = ~crc;
 	if (crc != file->crc) {
 		printf(" its CRC is %08lx, not %08lx as on EA's freeware disc; not installed\n", (unsigned long)crc, (unsigned long)file->crc);
 		Problems++;
-		remove(temp);
+		Dest_Remove(temp);
 		return;
 	}
-	remove(target);		/* RISC OS can't rename over an existing file */
-	if (rename(temp, target) != 0) {
+	Set_Data_Type(temp);
+	Dest_Remove(target);		/* RISC OS can't rename over an existing file */
+	if (!Dest_Rename(temp, target)) {
 		printf(" can't be given its name: %s\n", strerror(errno));
 		Problems++;
-		remove(temp);
+		Dest_Remove(temp);
 		return;
 	}
 	printf(" OK\n");
@@ -429,7 +529,7 @@ static void Check_Install(void)
 {
 	int firestorm = 0;
 	for (size_t f = 0; f < FILE_COUNT; f++) {
-		long const size = File_Size(Files[f].name);
+		long const size = Dest_Size(Files[f].name);
 		if (size >= 0 && !Valid_Size(Files[f].name, size)) {
 			Note_Problem(Files[f].name, "is the wrong size");
 		}
@@ -440,7 +540,7 @@ static void Check_Install(void)
 	}
 	for (size_t f = 0; f < FILE_COUNT; f++) {
 		int const needed = Files[f].disc == DISC_GDI || (firestorm && Files[f].disc == DISC_FIRESTORM);
-		if (needed && !Files[f].movie && File_Size(Files[f].name) < 0) {
+		if (needed && !Files[f].movie && Dest_Size(Files[f].name) < 0) {
 			Note_Problem(Files[f].name, "is missing");
 		}
 	}
@@ -461,6 +561,53 @@ static void Report_Check(void)
 #endif
 }
 
+/*
+** -old <dir>: data installed by an earlier version, straight into !OpenTS rather than its
+** gamedata directory, is moved there, file by file and only where gamedata hasn't one of its
+** own: renamed, so nothing is copied and it takes no time, and if it's stopped part-way the
+** next run carries on. The number moved goes in OpenTS$Moved, for the game's log.
+*/
+static void Migrate(char const * old_dir)
+{
+	int moved = 0;
+	for (size_t f = 0; f < FILE_COUNT; f++) {
+		int seen = 0;
+		for (size_t g = 0; g < f; g++) {
+			seen |= strcmp(Files[g].name, Files[f].name) == 0;
+		}
+		if (seen) continue;
+		char from[1024], to[1024];
+		Dest_Path(old_dir, Files[f].name, from, sizeof(from));
+		Dest_Path(Dest_Name, Files[f].name, to, sizeof(to));
+#ifdef __riscos__
+		int from_type = 0, to_type = 0;
+		if (_swix(OS_File, _INR(0, 1) | _OUT(0), 17, from, &from_type) != NULL || from_type != 1) continue;
+		if (_swix(OS_File, _INR(0, 1) | _OUT(0), 17, to, &to_type) == NULL && to_type != 0) continue;
+		if (moved == 0) {
+			_swix(OS_File, _INR(0, 1) | _IN(4), 8, Dest_Name, 0);
+		}
+		if (_swix(OS_FSControl, _INR(0, 2), 25, from, to) == NULL) {
+			_swix(OS_File, _INR(0, 2), 18, to, 0xFFD);
+			moved++;
+		}
+#else
+		struct stat info;
+		if (stat(from, &info) != 0 || stat(to, &info) == 0) continue;
+		if (moved == 0) {
+			mkdir(Dest_Name, 0777);
+		}
+		if (rename(from, to) == 0) {
+			moved++;
+		}
+#endif
+	}
+	if (moved > 0) {
+		char text[40];
+		snprintf(text, sizeof(text), "%d files", moved);
+		Set_Var("OpenTS$Moved", text);
+	}
+}
+
 static int Is_Image_Name(char const * name)
 {
 	size_t const length = strlen(name);
@@ -472,23 +619,11 @@ static int Is_Image_Name(char const * name)
 static int Disc_Installed(int disc)
 {
 	for (size_t f = 0; f < FILE_COUNT; f++) {
-		if (Files[f].disc == disc && !Files[f].movie && !Files[f].if_missing && File_Size(Files[f].name) != (long)Files[f].size) {
+		if (Files[f].disc == disc && !Files[f].movie && !Files[f].if_missing && Dest_Size(Files[f].name) != (long)Files[f].size) {
 			return(0);
 		}
 	}
 	return(1);
-}
-
-/* The last part of a path in either Unix or RISC OS form, for messages. */
-static char const * Leaf(char const * path)
-{
-	char const * leaf = path;
-	for (char const * p = path; *p != '\0'; p++) {
-		if ((*p == '/' || *p == '.') && p[1] != '\0') {
-			leaf = p + 1;
-		}
-	}
-	return(leaf);
 }
 
 int main(int argc, char ** argv)
@@ -497,6 +632,7 @@ int main(int argc, char ** argv)
 	char const * dest = ".";
 	int movies = 1, force = 0, check = 0;
 	char const * images_var = NULL;
+	char const * old_dir = NULL;
 	char * images[64];
 	int image_count = 0;
 
@@ -508,6 +644,7 @@ int main(int argc, char ** argv)
 		else if (strcmp(argv[i], "-check") == 0) check = 1;
 		else if (strcmp(argv[i], "-window") == 0) Window_Mode = 1;
 		else if (strcmp(argv[i], "-images") == 0 && i + 1 < argc) images_var = argv[++i];
+		else if (strcmp(argv[i], "-old") == 0 && i + 1 < argc) old_dir = argv[++i];
 		else if (strcmp(argv[i], "-identify") == 0 && i + 1 < argc) {
 			int cut;
 			char volume[40];
@@ -535,9 +672,14 @@ int main(int argc, char ** argv)
 		Holding = 1;
 	}
 
+	Dest_Name = dest;
+	if (old_dir != NULL) {
+		Migrate(old_dir);
+	}
+
 	if (check) {
-		if (chdir(dest) != 0) {
-			snprintf(Problem, sizeof(Problem), "its directory can't be read");
+		if (!Dest_Exists()) {
+			Note_Problem("TIBSUN.MIX", "is missing");	/* no gamedata directory: nothing installed yet */
 		} else {
 			Check_Install();
 		}
@@ -587,7 +729,12 @@ int main(int argc, char ** argv)
 			return(1);
 		}
 	}
-	if (chdir(dest) != 0) {
+#ifdef __riscos__
+	_swix(OS_File, _INR(0, 1) | _IN(4), 8, dest, 0);	/* the gamedata directory, if it isn't there yet */
+#else
+	mkdir(dest, 0777);
+#endif
+	if (!Dest_Exists()) {
 		printf("Can't write into %s: %s\n", dest, strerror(errno));
 		return(1);
 	}
@@ -598,16 +745,39 @@ int main(int argc, char ** argv)
 	for (size_t f = 0; f < FILE_COUNT; f++) {
 		char temp[32];
 		Temp_Name(Files[f].name, temp, sizeof(temp));
-		remove(temp);
+		Dest_Remove(temp);
 	}
 	{
-		/* dest may be a system variable, such as <OpenTS$Dir>: name the directory itself. */
-		char where[1024];
-		printf("Installing the Tiberian Sun data into %s\n", getcwd(where, sizeof(where)) != NULL ? Leaf(where) : dest);
+		printf("Installing the Tiberian Sun data into %s\n", dest);
 	}
 
 	/* Firestorm first, so that its newer copies are the ones kept. */
 	static int const Order[] = { DISC_FIRESTORM, DISC_GDI, DISC_NOD };
+	/* How many files will be copied, for the progress ("file 2 of 6"): those not there yet,
+	** each once (the GDI and Nod discs both hold TIBSUN.MIX, and the second is skipped). */
+	{
+		int counted = 0;
+		char const * planned[FILE_COUNT];
+		int planned_count = 0;
+		for (size_t pass = 0; pass < sizeof(Order) / sizeof(Order[0]); pass++) {
+			for (int i = 0; i < opened_count; i++) {
+				int const disc = Identify(opened[i]);
+				if (disc != Order[pass] || (counted & disc)) continue;
+				counted |= disc;
+				for (size_t f = 0; f < FILE_COUNT; f++) {
+					if (Files[f].disc != disc || !(movies || !Files[f].movie) || !Will_Install(&Files[f], force)) continue;
+					int dup = 0;
+					for (int k = 0; k < planned_count; k++) {
+						dup |= strcmp(planned[k], Files[f].name) == 0;
+					}
+					if (!dup) {
+						planned[planned_count++] = Files[f].name;
+					}
+				}
+			}
+		}
+		Copy_Count = planned_count;
+	}
 	int found_discs = 0;
 	for (size_t pass = 0; pass < sizeof(Order) / sizeof(Order[0]); pass++) {
 		for (int i = 0; i < opened_count; i++) {
@@ -653,7 +823,7 @@ int main(int argc, char ** argv)
 	if (Window_Mode) {
 		Set_Var("OpenTS$Installing", NULL);
 		Problem[0] = '\0';
-		Check_Install(); /* the current directory is the destination now */
+		Check_Install();
 		Report_Check();
 		if (Problems == 0 && Problem[0] == '\0') {
 			return(0); /* nothing printed: the task window never opens */
