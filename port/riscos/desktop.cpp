@@ -22,8 +22,8 @@
 **
 ** The game data comes from the freeware CD images (ISO files), dragged onto the icon. !Run checks
 ** the installed files (Utils.tsprep -check) and leaves any problem in OpenTS$DataProblem; while
-** there is one, a click on the icon says how to install the data and opens !Help, instead of
-** starting the game. Nothing of the game's has been set up by then (the wait is before WinMain).
+** there is one, a click on the icon says how to install the data, and where its help is, instead
+** of starting the game. Nothing of the game's has been set up by then (the wait is before WinMain).
 ** A dragged file is identified here from its directory (discid.h, shared with the Vanilla
 ** Conquer port): a Tiberian Sun disc is installed by Utils.tsprep in a task window, which only
 ** opens if something goes wrong; another game's disc, a cut-short image or anything else is
@@ -767,10 +767,9 @@ void Explain_No_Data(void)
 		return;
 	}
 	Tell("Tiberian Sun's game data isn't installed, or is incomplete (" + Data_Problem()
-			+ "). Drag the CD images (ISO files) onto this icon to install it. !Help, opening now, says "
-			  "where to get them.",
+			+ "). Drag the CD images (ISO files) onto this icon to install it. !Help says where to get "
+			  "them: choose Help on this icon's menu, or open !Help in the !OpenTS directory.",
 		false);
-	Open_Help();
 }
 
 // Message_DataLoad on the icon: a file dragged onto it from the Filer. Nothing is read here:

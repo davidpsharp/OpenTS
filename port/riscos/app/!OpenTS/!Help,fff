@@ -109,7 +109,8 @@ too.
 
 Each time the game starts, it checks that its files are all there at the
 right sizes (it takes a moment). Until they are, clicking the icon says
-what's missing and opens this file, instead of starting the game.
+what's missing, and that this file says where to get the discs, instead
+of starting the game.
 *Set OpenTS$NoDataCheck 1 skips that check, for game data from
 elsewhere.
 
