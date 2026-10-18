@@ -17,10 +17,15 @@ bool RISCOS_Desktop_Is_Leave_Key(unsigned sdl_key, unsigned sdl_mod);
 // Gives the screen back to the desktop and waits, paused, until the icon is clicked (or the
 // game is quit from its menu). The caller pauses the game around it.
 void RISCOS_Desktop_Suspend(void);
+
+// True while the desktop has the screen (waiting on the icon bar, or quitting from it): the
+// game mustn't present a frame then.
+bool RISCOS_Desktop_Has_Screen(void);
 #else
 inline void RISCOS_Desktop_Start(bool) {}
 inline bool RISCOS_Desktop_Is_Leave_Key(unsigned, unsigned) { return(false); }
 inline void RISCOS_Desktop_Suspend(void) {}
+inline bool RISCOS_Desktop_Has_Screen(void) { return(false); }
 #endif
 
 // The SDL sound output paused for the desktop and back (audiodevice_sdl.cpp); with no output

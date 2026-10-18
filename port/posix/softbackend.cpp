@@ -17,6 +17,7 @@
 #include "bgfxbackend.h"
 #include "dbgprint.h"
 #include "ftimer.h"
+#include "riscosdesktop.h"
 #include "riscosoverlay.h"
 #include "riscospointer.h"
 #include "softscreen.h"
@@ -401,6 +402,15 @@ bool Backend_Present(void const * pixels, int pitch, int destx, int desty, int d
 	if (_Screen == nullptr) {
 		return(false);
 	}
+	// Nothing goes on the screen while the desktop has it (waiting on the icon bar, or quitting).
+	if (RISCOS_Desktop_Has_Screen()) {
+		static bool told = false;
+		if (!told) {
+			told = true;
+			DebugString("Video: a frame wasn't presented, as the desktop has the screen\n");
+		}
+		return(false);
+	}
 	Uint64 const start = SDL_GetTicksNS();
 
 	// Where the window surface is 32-bit and the screen's size, draw straight into it, which
@@ -469,7 +479,7 @@ bool Backend_Frame_Is_Point_Sampled(void)
 
 void Backend_End_Frame(void)
 {
-	if (_Window == nullptr || _Screen == nullptr) {
+	if (_Window == nullptr || _Screen == nullptr || RISCOS_Desktop_Has_Screen()) {
 		return;
 	}
 	if (_OverlayStart != 0) {

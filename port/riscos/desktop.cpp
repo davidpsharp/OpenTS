@@ -57,6 +57,10 @@ void Emergency_Exit(void);
 
 namespace
 {
+// True while the desktop has the screen: waiting on the icon bar, and from a quit on. No frame
+// is presented then, so quitting from the icon bar never shows the game again.
+bool DesktopHasScreen = false;
+
 
 int TaskHandle = 0;
 int IconHandle = -1;
@@ -272,6 +276,7 @@ void Give_Screen_To_Desktop(void);
 void Quit_Game(void)
 {
 	fprintf(stderr, "desktop: quit from the icon bar\n");
+	DesktopHasScreen = true; // the shutdown below mustn't present a frame
 	Audio_SDL_Pause_For_Desktop(false);
 	// The game's own way out (as its queue does): the sound and window shut down first, which
 	// a plain exit skipped, crashing on the way out. The Wimp then closes the task.
@@ -1271,8 +1276,16 @@ void RISCOS_Desktop_Start(bool wait)
 	// OPENTS_NODESKTOP (for tests) skips the wait, but never when there is no data to play with.
 	if (IconHandle >= 0 && (no_data || (wait && getenv("OPENTS_NODESKTOP") == nullptr))) {
 		fprintf(stderr, "desktop: waiting for a click on the icon bar\n");
+		DesktopHasScreen = true;
 		Wait_For_Icon_Click();
+		DesktopHasScreen = false;
 	}
+}
+
+
+bool RISCOS_Desktop_Has_Screen(void)
+{
+	return(DesktopHasScreen);
 }
 
 
@@ -1289,8 +1302,10 @@ void RISCOS_Desktop_Suspend(void)
 	}
 	fprintf(stderr, "desktop: left for the desktop\n");
 	Audio_SDL_Pause_For_Desktop(true);
+	DesktopHasScreen = true;
 	Give_Screen_To_Desktop();
 	Wait_For_Icon_Click();
+	DesktopHasScreen = false;
 	Take_Screen_Back();
 	Audio_SDL_Pause_For_Desktop(false);
 	fprintf(stderr, "desktop: back to the game\n");
