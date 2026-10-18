@@ -25,4 +25,7 @@ mkdir -p "$OUT/Licences"
 cp /work/LICENSE.md "$OUT/Licences/OpenTS,fff"
 cp /work/THIRD_PARTY_NOTICES.md "$OUT/Licences/ThirdParty,fff"
 cp /work/ui/OFL.txt "$OUT/Licences/Arimo,fff"
+# UnixLib (libunixlib.a, from the riscos-unixlib release in the Dockerfile) is linked into
+# !RunImage; its COPYING is kept here because the release has none of its own.
+cp /work/port/riscos/licences/UnixLib.txt "$OUT/Licences/UnixLib,fff"
 echo "$OUT"

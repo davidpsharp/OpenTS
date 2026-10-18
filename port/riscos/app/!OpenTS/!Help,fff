@@ -167,11 +167,14 @@ additional terms. See !OpenTS.Licences for the licence texts:
                   LZO (GPL-2), Dear ImGui (MIT), miniaudio (MIT-0 or
                   public domain), miniz (MIT)
   Arimo           the Arimo font in !OpenTS.ui (SIL Open Font Licence)
+  UnixLib         the C library in !RunImage (BSD and LGPL; an unofficial
+                  fork of GCCSDK's UnixLib, riscos-unixlib 5.0.3.3)
 
 The GPL means you can have the source code: this RISC OS version's, with
 all of its changes to OpenTS, is at the RISC OS port address above (the
-riscos branch), and OpenTS's own at the OpenTS address. SharedUnixLibrary and the C library in !RunImage are from the GCCSDK
-project at https://www.riscos.info/.
+riscos branch), and OpenTS's own at the OpenTS address. SharedUnixLibrary
+is from the GCCSDK project at https://www.riscos.info/, and the C library in
+!RunImage from https://github.com/adyoull/riscos-unixlib.
 
 Command & Conquer and Tiberian Sun are trademarks of Electronic Arts.
 OpenTS is not affiliated with or endorsed by Electronic Arts. The game
