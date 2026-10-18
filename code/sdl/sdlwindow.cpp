@@ -753,9 +753,14 @@ SDL_Cursor * Main_Window_System_Cursor(UICursor shape)
 		cursor = SDL_CreateSystemCursor(System_Cursor_Of(shape));
 	}
 #ifdef __riscos__
-	// RISC OS's SDL has no system cursors, so the other shapes are the arrow, not no pointer.
+	// RISC OS's SDL has no system cursors, so the other shapes are the arrow, not no pointer;
+	// and the arrow (when the player chose the system pointer, or before the game's own arrow is
+	// made) is SDL's default cursor, which port/riscos/pointer.cpp shows as the desktop's pointer.
 	if (cursor == nullptr && shape != UI_CURSOR_ARROW) {
 		return(Main_Window_System_Cursor(UI_CURSOR_ARROW));
+	}
+	if (cursor == nullptr) {
+		return(SDL_GetDefaultCursor());
 	}
 #endif
 	return(cursor);

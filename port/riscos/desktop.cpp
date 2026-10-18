@@ -36,6 +36,7 @@
 #include "tools/discid.h"
 #include "tools/tsfiles.h"
 #include "riscosoverlay.h"
+#include "riscospointer.h"
 #include "opents_build.h"
 #include "opents_version.h"
 
@@ -1221,9 +1222,7 @@ void Give_Screen_To_Desktop(void)
 void Take_Screen_Back(void)
 {
 	_kernel_osbyte(229, 1, 0);
-	if (!SDL_CursorVisible()) {
-		_kernel_osbyte(106, 0, 0);
-	}
+	RISCOS_Pointer_Game_Takes_Screen(); // the game draws its own
 	_kernel_osbyte(21, 0, 0); // flush the keyboard buffer
 }
 
@@ -1245,6 +1244,7 @@ void RISCOS_Desktop_Start(bool wait)
 	if (TaskHandle != 0) {
 		return;
 	}
+	RISCOS_Pointer_Init();
 
 	// Files dragged to the icon, and task windows closing (Message_Quit always comes).
 	int messages[3] = {3, 0x400C3, 0};
@@ -1279,6 +1279,9 @@ void RISCOS_Desktop_Start(bool wait)
 		Wait_For_Icon_Click();
 		DesktopHasScreen = false;
 	}
+	// The game takes the screen from here on: the desktop's pointer off while it loads, before
+	// it has drawn anything (or its own pointer).
+	RISCOS_Pointer_Game_Takes_Screen();
 }
 
 

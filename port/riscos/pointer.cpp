@@ -13,9 +13,20 @@
 ** pointer has three colours and is at most 32 pixels wide, too little for the game's art, so
 ** the pointer is drawn into each frame instead, as the frame is redrawn in full every time,
 ** and the hardware pointer is kept off while it is.
+**
+** SDL's driver turned the hardware pointer on whenever it showed a cursor: each time the game
+** changed its cursor (scrolling, the Options button's green one) and while it loaded (the
+** cursors are made again for each map). So SDL is told to leave it alone (patches/
+** sdl-riscos-own-pointer.patch, the SDL_RISCOS_HARDWARE_POINTER hint), and this file alone turns
+** it on or off: off while the game has the screen, except for a cursor with no picture when the
+** player chose the system pointer in Options.
 */
 
 #include "riscospointer.h"
+#include "riscosdesktop.h"
+
+#include "always.h"
+#include "goptions.h"
 
 #include <kernel.h>
 
@@ -84,20 +95,42 @@ static void Note_Drawn(PointerPicture const * picture)
 	SDL_GetMouseState(&_DrawnX, &_DrawnY);
 }
 
+extern GameOptionsClass Options;
+
+// Whether the desktop's pointer is on, as this file last set it (-1: not known).
+static int _HardwareOn = -1;
+
+void RISCOS_Pointer_Init(void)
+{
+	SDL_SetHint("SDL_RISCOS_HARDWARE_POINTER", "0");
+}
+
+// Turns the desktop's pointer on or off to suit the game's cursor, unless the desktop has the
+// screen (and then the desktop's pointer is its own).
+static void Update_Hardware_Pointer(bool force)
+{
+	if (RISCOS_Desktop_Has_Screen()) {
+		_HardwareOn = -1;
+		return;
+	}
+	// The desktop's pointer only stands in for a cursor with no picture, and only if the player
+	// asked for it: otherwise there's no pointer until the game's own arrow is ready.
+	int const on = (Options.SystemCursor && Find_Picture() == nullptr && SDL_CursorVisible()) ? 1 : 0;
+	if (force || on != _HardwareOn) {
+		_kernel_osbyte(106, on, 0);
+		_HardwareOn = on;
+	}
+}
+
+void RISCOS_Pointer_Game_Takes_Screen(void)
+{
+	Update_Hardware_Pointer(true);
+}
+
 bool RISCOS_Pointer_Changed(void)
 {
 	PointerPicture const * const picture = Find_Picture();
-	// SDL turns the desktop's pointer on whenever it shows a cursor, which it does on its own as
-	// well (the mouse coming into the window, for one), and a still screen may not be drawn
-	// again for a while: so it is turned off between frames too, a hundred times a second.
-	if (picture != nullptr) {
-		static Uint64 lastoff = 0;
-		Uint64 const now = SDL_GetTicks();
-		if (now - lastoff >= 10) {
-			lastoff = now;
-			_kernel_osbyte(106, 0, 0);
-		}
-	}
+	Update_Hardware_Pointer(false);
 	float x = 0.0f;
 	float y = 0.0f;
 	SDL_GetMouseState(&x, &y);
@@ -109,11 +142,7 @@ static PointerPicture const * Current_Picture(void)
 {
 	PointerPicture const * picture = Find_Picture();
 	Note_Drawn(picture);
-	if (picture == nullptr) {
-		return(nullptr);
-	}
-	// SDL turns the hardware pointer on whenever it shows a cursor; this one is drawn instead.
-	_kernel_osbyte(106, 0, 0);
+	Update_Hardware_Pointer(false);
 	return(picture);
 }
 

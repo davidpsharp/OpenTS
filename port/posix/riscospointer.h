@@ -21,8 +21,13 @@ void RISCOS_Pointer_Draw(std::uint32_t * pixels, int pitch, int width, int heigh
 // overlay's): at the mouse's place in the frame, and at the frame's scale.
 void RISCOS_Pointer_Draw_Into_Frame(std::uint32_t * pixels, int pitch, int width, int height, int redshift, int blueshift,
 	int destx, int desty, int destwidth, int destheight);
-// Has the mouse moved, or SDL's cursor changed, since the pointer was last drawn?
+// Has the mouse moved, or SDL's cursor changed, since the pointer was last drawn? Also keeps
+// the desktop's pointer off (or on, for the system pointer) to suit the cursor.
 bool RISCOS_Pointer_Changed(void);
+// Tells SDL to leave the desktop's pointer to this code; before SDL shows any cursor.
+void RISCOS_Pointer_Init(void);
+// The game has the screen again (or for the first time): the desktop's pointer to suit it.
+void RISCOS_Pointer_Game_Takes_Screen(void);
 #else
 inline void RISCOS_Pointer_Add(SDL_Cursor *, unsigned int const *, int, int, int, int) {}
 inline void RISCOS_Pointer_Remove(SDL_Cursor *) {}
@@ -30,4 +35,6 @@ inline void RISCOS_Pointer_Set_Arrow(SDL_Cursor *) {}
 inline void RISCOS_Pointer_Draw(std::uint32_t *, int, int, int, int, int) {}
 inline void RISCOS_Pointer_Draw_Into_Frame(std::uint32_t *, int, int, int, int, int, int, int, int, int) {}
 inline bool RISCOS_Pointer_Changed(void) { return(false); }
+inline void RISCOS_Pointer_Init(void) {}
+inline void RISCOS_Pointer_Game_Takes_Screen(void) {}
 #endif

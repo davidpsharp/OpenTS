@@ -1,0 +1,19 @@
+diff --git a/src/video/riscos/SDL_riscosmouse.c b/src/video/riscos/SDL_riscosmouse.c
+index 1b223bb..4022029 100644
+--- a/src/video/riscos/SDL_riscosmouse.c
++++ b/src/video/riscos/SDL_riscosmouse.c
+@@ -46,6 +46,14 @@ static void RISCOS_FreeCursor(SDL_Cursor *cursor)
+ 
+ static bool RISCOS_ShowCursor(SDL_Cursor *cursor)
+ {
++    /* OpenTS: a program that draws its own pointer into its frames sets this hint to "0", and
++       then turns the desktop's pointer on and off itself: otherwise every cursor SDL shows (each
++       time the program changes its cursor, or while it loads and draws nothing) turns the blue
++       desktop pointer on over the program's own. */
++    if (!SDL_GetHintBoolean("SDL_RISCOS_HARDWARE_POINTER", true)) {
++        return true;
++    }
++
+     if (cursor) {
+         // Turn the mouse pointer on
+         _kernel_osbyte(106, 1, 0);
