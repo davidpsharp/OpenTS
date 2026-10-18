@@ -11,12 +11,22 @@
 ** tsprep: installs the Tiberian Sun data from the freeware CD images.
 **
 **   tsprep [-search <dir>] [-dest <dir>] [-nomovies] [-force] [<image>...]
+**   tsprep -check -dest <dir>
 **
 ** It reads the ISO 9660 images directly, so no CD drive is needed. Each image is recognised
 ** by its contents (the GDI and Nod discs both hold INSTALL/TIBSUN.MIX, with MAPS01.MIX or
 ** MAPS02.MIX, the Firestorm disc INSTALL/EXPAND01.MIX), so its name doesn't matter. The files the game needs are copied
 ** into the destination and checked against the sizes and CRC-32s of EA's freeware images.
 ** A file already there at the right size is skipped unless -force is given.
+**
+** Each file is written under a temporary name (TIBSUN.TMP for TIBSUN.MIX) and only given its
+** own once its size and CRC are right, so a file under its real name is always a whole,
+** checked copy: an interrupted run (Escape, a full disc, a power cut) leaves nothing that
+** looks installed, and running Prepare again redoes that file.
+**
+** -check only checks that the files the game needs are all there at their sizes (no
+** checksums, so it takes a moment): !Run does this before every game. The first problem
+** goes in OpenTS$DataProblem, which is unset when all is well; the exit code is 0 or 1.
 **
 ** Modelled on vcprep from the Vanilla Conquer RISC OS port.
 */
@@ -30,6 +40,11 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#ifdef __riscos__
+#include <kernel.h>
+#include <swis.h>
+#endif
 
 
 #define SECTOR 2048
@@ -213,9 +228,22 @@ static void Preallocate(char const * path, uint32_t size)
 	fclose(f);
 }
 
+/* The temporary name a file is written under: TIBSUN.MIX becomes TIBSUN.TMP, in the same
+** directory so that it can be renamed. */
+static void Temp_Name(char const * name, char * out, size_t length)
+{
+	snprintf(out, length, "%s", name);
+	char * dot = strrchr(out, '.');
+	if (dot != NULL && (size_t)(dot - out) + 4 < length) {
+		strcpy(dot, ".TMP");
+	}
+}
+
 static void Install(FILE * image, FileType const * file, int force)
 {
 	char const * target = file->name;
+	char temp[32];
+	Temp_Name(file->name, temp, sizeof(temp));
 
 	long const existing = File_Size(target);
 	if (existing >= 0 && (file->if_missing || (!force && existing == (long)file->size))) {
@@ -230,20 +258,23 @@ static void Install(FILE * image, FileType const * file, int force)
 		return;
 	}
 	if (size != file->size) {
-		printf("  %-14s is %lu bytes on this disc, not %lu as on EA's freeware disc; copying it anyway\n",
+		printf("  %-14s is %lu bytes on this disc, not %lu as on EA's freeware disc; not installed\n",
 			file->name, (unsigned long)size, (unsigned long)file->size);
+		Problems++;
+		return;
 	}
 
 	printf("  %-14s %3lu MB ", file->name, (unsigned long)((size + 524288) >> 20));
 	fflush(stdout);
 
-	remove(target);
-	Preallocate(target, size);
-	FILE * out = fopen(target, "r+b");
+	remove(temp);
+	Preallocate(temp, size);
+	FILE * out = fopen(temp, "r+b");
 	if (out == NULL || fseek(image, (long)lba * SECTOR, SEEK_SET) != 0) {
 		printf("can't be written: %s\n", strerror(errno));
 		Problems++;
 		if (out != NULL) fclose(out);
+		remove(temp);
 		return;
 	}
 
@@ -251,15 +282,17 @@ static void Install(FILE * image, FileType const * file, int force)
 	while (left > 0) {
 		size_t const chunk = left < sizeof(Buffer) ? left : sizeof(Buffer);
 		if (fread(Buffer, 1, chunk, image) != chunk) {
-			printf("\n    the image ended early\n");
+			printf("\n    the image ended early; not installed\n");
 			Problems++;
 			fclose(out);
+			remove(temp);
 			return;
 		}
 		if (fwrite(Buffer, 1, chunk, out) != chunk) {
-			printf("\n    writing failed: %s (is the disc full?)\n", strerror(errno));
+			printf("\n    writing failed: %s (is the disc full?); not installed\n", strerror(errno));
 			Problems++;
 			fclose(out);
+			remove(temp);
 			return;
 		}
 		crc = Crc_Update(crc, Buffer, chunk);
@@ -270,17 +303,94 @@ static void Install(FILE * image, FileType const * file, int force)
 		}
 	}
 	if (fclose(out) != 0) {
-		printf(" writing failed: %s\n", strerror(errno));
+		printf(" writing failed: %s; not installed\n", strerror(errno));
 		Problems++;
+		remove(temp);
 		return;
 	}
 	crc = ~crc;
-	if (crc == file->crc) {
-		printf(" OK\n");
-	} else {
-		printf(" copied, but its CRC is %08lx, not %08lx as on EA's freeware disc\n", (unsigned long)crc, (unsigned long)file->crc);
+	if (crc != file->crc) {
+		printf(" its CRC is %08lx, not %08lx as on EA's freeware disc; not installed\n", (unsigned long)crc, (unsigned long)file->crc);
 		Problems++;
+		remove(temp);
+		return;
 	}
+	remove(target);		/* RISC OS can't rename over an existing file */
+	if (rename(temp, target) != 0) {
+		printf(" can't be given its name: %s\n", strerror(errno));
+		Problems++;
+		remove(temp);
+		return;
+	}
+	printf(" OK\n");
+}
+
+/* ---- -check: is the data all there? ---- */
+
+static char Problem[200];
+
+/* A file's name as RISC OS shows it (TIBSUN/MIX), for the message. */
+static void Note_Problem(char const * name, char const * what)
+{
+	if (Problem[0] != '\0') {
+		return;
+	}
+	snprintf(Problem, sizeof(Problem), "%s %s", name, what);
+#ifdef __riscos__
+	for (char * p = Problem; *p != ' '; p++) {
+		if (*p == '.') *p = '/';
+	}
+#endif
+}
+
+static int Valid_Size(char const * name, long size)
+{
+	for (size_t f = 0; f < FILE_COUNT; f++) {
+		if (strcmp(Files[f].name, name) == 0 && (long)Files[f].size == size) {
+			return(1);
+		}
+	}
+	return(0);
+}
+
+/* The GDI disc's files are needed (as Prepare says), at either of the sizes a file may have
+** (the Firestorm disc's MULTI.MIX and SIDECD02.MIX are newer). The Nod disc and the movies
+** are optional; Firestorm is too, but if any of its own files is there, all of them must be.
+** A file there at a size it never has is a damaged or partly copied one: always a problem. */
+static void Check_Install(void)
+{
+	int firestorm = 0;
+	for (size_t f = 0; f < FILE_COUNT; f++) {
+		long const size = File_Size(Files[f].name);
+		if (size >= 0 && !Valid_Size(Files[f].name, size)) {
+			Note_Problem(Files[f].name, "is the wrong size");
+		}
+		if (Files[f].disc == DISC_FIRESTORM && !Files[f].movie && size >= 0
+			&& strcmp(Files[f].name, "MULTI.MIX") != 0 && strcmp(Files[f].name, "SIDECD02.MIX") != 0) {
+			firestorm = 1;
+		}
+	}
+	for (size_t f = 0; f < FILE_COUNT; f++) {
+		int const needed = Files[f].disc == DISC_GDI || (firestorm && Files[f].disc == DISC_FIRESTORM);
+		if (needed && !Files[f].movie && File_Size(Files[f].name) < 0) {
+			Note_Problem(Files[f].name, "is missing");
+		}
+	}
+}
+
+/* Puts the problem (or nothing) in OpenTS$DataProblem, for !Run. */
+static void Report_Check(void)
+{
+#ifdef __riscos__
+	if (Problem[0] != '\0') {
+		_swix(OS_SetVarVal, _INR(0, 4), "OpenTS$DataProblem", Problem, (int)strlen(Problem), 0, 4);
+	} else {
+		_swix(OS_SetVarVal, _INR(0, 4), "OpenTS$DataProblem", NULL, -1, 0, 0);
+	}
+#else
+	/* Nothing goes to the screen on RISC OS: !Run runs this in the desktop. */
+	printf("OpenTS$DataProblem: %s\n", Problem[0] != '\0' ? Problem : "all there");
+#endif
 }
 
 static int Is_Image_Name(char const * name)
@@ -317,7 +427,7 @@ int main(int argc, char ** argv)
 {
 	char const * search = NULL;
 	char const * dest = ".";
-	int movies = 1, force = 0;
+	int movies = 1, force = 0, check = 0;
 	char * images[64];
 	int image_count = 0;
 
@@ -326,8 +436,19 @@ int main(int argc, char ** argv)
 		else if (strcmp(argv[i], "-dest") == 0 && i + 1 < argc) dest = argv[++i];
 		else if (strcmp(argv[i], "-nomovies") == 0) movies = 0;
 		else if (strcmp(argv[i], "-force") == 0) force = 1;
+		else if (strcmp(argv[i], "-check") == 0) check = 1;
 		else if (argv[i][0] == '-') { fprintf(stderr, "tsprep: unknown option %s\n", argv[i]); return(2); }
 		else if (image_count < 64) images[image_count++] = argv[i];
+	}
+
+	if (check) {
+		if (chdir(dest) != 0) {
+			snprintf(Problem, sizeof(Problem), "its directory can't be read");
+		} else {
+			Check_Install();
+		}
+		Report_Check();
+		return(Problem[0] != '\0');
 	}
 
 	/* The images are opened before moving to the destination, so that names given relative
@@ -378,6 +499,13 @@ int main(int argc, char ** argv)
 	}
 
 	Crc_Init();
+
+	/* What an interrupted run may have left under the temporary names. */
+	for (size_t f = 0; f < FILE_COUNT; f++) {
+		char temp[32];
+		Temp_Name(Files[f].name, temp, sizeof(temp));
+		remove(temp);
+	}
 	{
 		/* dest may be a system variable, such as <OpenTS$Dir>: name the directory itself. */
 		char where[1024];

@@ -1,16 +1,24 @@
 | !Run for OpenTS. The game data (the MIX files) goes in this directory.
 Set OpenTS$Dir <Obey$Dir>
 IconSprites <OpenTS$Dir>.!Sprites
-| The game data comes from the original CD images (ISO files), installed by Prepare.
-| Without it, open !Help, which says where to get them and how, and stop.
-Set OpenTS$NoData 1
-IfThere <OpenTS$Dir>.TIBSUN/MIX Then Set OpenTS$NoData 0
-If "<OpenTS$NoData>"="1" Then Filer_Run <OpenTS$Dir>.!Help
-If "<OpenTS$NoData>"="1" Then Error Tiberian Sun's game data isn't installed. It comes from the freeware Tiberian Sun CD images (ISO files): !Help, now open, says where to get them and how to install them with Prepare.
 RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad System:Modules.SharedULib
 RMEnsure SharedUnixLibrary 1.16 Error OpenTS needs SharedUnixLibrary 1.16 or later
 RMEnsure ARMEABISupport 1.03 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport
 RMEnsure ARMEABISupport 1.03 Error OpenTS needs ARMEABISupport 1.03 or later
+| The game data comes from the original CD images (ISO files), installed by Prepare.
+| Utils.tsprep checks that every file is there at its size (no checksums, so it's quick);
+| without it, that TIBSUN/MIX is. If anything is wrong, open !Help, which says where to get
+| the images and how to install them, and stop. OpenTS$NoDataCheck skips the check.
+WimpSlot -min 2000K -max 2000K
+Set OpenTS$Checker 0
+IfThere <OpenTS$Dir>.Utils.tsprep Then Set OpenTS$Checker 1
+Set OpenTS$DataProblem TIBSUN/MIX is missing
+If <OpenTS$Checker>=1 Then Run <OpenTS$Dir>.Utils.tsprep -check -dest <OpenTS$Dir>
+If <OpenTS$Checker>=0 Then IfThere <OpenTS$Dir>.TIBSUN/MIX Then Unset OpenTS$DataProblem
+Unset OpenTS$Checker
+If "<OpenTS$NoDataCheck>"<>"" Then Unset OpenTS$DataProblem
+If "<OpenTS$DataProblem>"<>"" Then Filer_Run <OpenTS$Dir>.!Help
+If "<OpenTS$DataProblem>"<>"" Then Error Tiberian Sun's game data isn't installed, or is incomplete (<OpenTS$DataProblem>). !Help, now open, says where to get the freeware Tiberian Sun CD images (ISO files) and how to install them with Prepare.
 | DigitalRenderer plays the sound (through UnixLib's /dev/dsp). Without it the game is silent.
 RMEnsure DigitalRenderer 0.55 IfThere System:Modules.DRenderer Then RMLoad System:Modules.DRenderer
 | On the Pi the display stretches the game's frames through an overlay (VideoOverlay, in !System).

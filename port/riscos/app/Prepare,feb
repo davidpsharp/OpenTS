@@ -6,6 +6,9 @@
 | -nomovies leaves out the movies (about 490 MB each on the GDI and Nod discs and 460 MB
 | on the Firestorm disc).
 | -force rewrites files that are already there.
+| Each file is only given its name once it's checked, so running Prepare again after an
+| interrupted run redoes the file it didn't finish. !Run checks the files before each game
+| with Utils.tsprep -check.
 If "<OpenTS$Dir>"="" Then Error Prepare doesn't know where !OpenTS is yet. Open the directory containing it, then run Prepare again.
 RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad System:Modules.SharedULib
 RMEnsure SharedUnixLibrary 1.16 Error Prepare needs SharedUnixLibrary 1.16 or later

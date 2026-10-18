@@ -77,7 +77,15 @@ Prepare reads the ISO files directly (no CD drive or CDFS is needed),
 copies the game files into !OpenTS and checks each one against the
 freeware discs' checksums. It recognises the images by their contents,
 so it doesn't matter if RISC OS has shortened their names. Files already
-installed are skipped, so it's safe to run it again.
+installed are skipped, so it's safe to run it again. Each file is only
+given its real name once it's right, so if Prepare is stopped part-way
+(Escape, a full disc, a power cut), running it again redoes the file it
+didn't finish.
+
+Every time the game starts, !Run checks that its files are all there at
+the right sizes (it takes a moment); if one isn't, it says which, opens
+this file and doesn't start the game. *Set OpenTS$NoDataCheck 1 skips
+that check, for game data from elsewhere.
 
 From the command line you can also name the images and give options:
 
@@ -95,11 +103,12 @@ files already installed are skipped.
 If you have the game data already, from the CDs or an installed copy, you
 can copy the files into !OpenTS yourself instead: TIBSUN.MIX, MAPS01.MIX,
 SCORES.MIX and SIDECD01.MIX from the GDI disc, MAPS02.MIX and SIDECD02.MIX
-from the Nod disc, and EXPAND01.MIX, MULTI.MIX, WDTVOX.MIX, E01SCD01.MIX,
-E01SCD02.MIX, MAPS03.MIX, SCORES01.MIX, SIDECD02.MIX and WDT.MIX from the
-Firestorm disc (several are in its INSTALL directory; its MULTI.MIX and
-SIDECD02.MIX are newer than the other discs' copies). The movies are
-MOVIES01.MIX, MOVIES02.MIX and MOVIES03.MIX, one on each disc.
+from the Nod disc, and EXPAND01.MIX, LANGUAGE.DLL, MULTI.MIX, WDTVOX.MIX,
+E01SCD01.MIX, E01SCD02.MIX, MAPS03.MIX, SCORES01.MIX, SIDECD02.MIX and
+WDT.MIX from the Firestorm disc (several are in its INSTALL directory;
+its MULTI.MIX and SIDECD02.MIX are newer than the other discs' copies).
+The movies are MOVIES01.MIX, MOVIES02.MIX and MOVIES03.MIX, one on each
+disc.
 
 
 Playing
