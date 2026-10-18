@@ -37,6 +37,7 @@ execute_process(COMMAND ${CMAKE_COMMAND}
     -DOPENTS_VERSION_HEADER=${GENERATED}/opents_version.h
     -DOPENTS_STAMP_HEADER=${GENERATED}/opents_build.h
     -DOPENTS_ARCH=${CMAKE_SYSTEM_PROCESSOR}
+    -DOPENTS_STATUS_IGNORE_SUBMODULES=${OPENTS_SUBMODULES_PATCHED}
     -P "${OTS}/cmake/GitStamp.cmake")
 execute_process(COMMAND ${CMAKE_COMMAND}
     -DOPENTS_LANGUAGE_HEADER=${OTS}/code/language/language.h

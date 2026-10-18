@@ -153,8 +153,14 @@ if(GIT_FOUND AND EXISTS "${OPENTS_SOURCE_DIR}/.git")
 
     # Untracked files are excluded deliberately: a scratch file beside the sources does not
     # make the built code differ from the commit.
+    # A build that patches a submodule's working tree from patches kept in this repository
+    # (the RISC OS port does SDL's) asks for changes inside submodules to be left out too.
+    set(GIT_STATUS_SUBMODULES)
+    if(OPENTS_STATUS_IGNORE_SUBMODULES)
+        set(GIT_STATUS_SUBMODULES --ignore-submodules=dirty)
+    endif()
     execute_process(
-        COMMAND "${GIT_EXECUTABLE}" status --porcelain --untracked-files=no
+        COMMAND "${GIT_EXECUTABLE}" status --porcelain --untracked-files=no ${GIT_STATUS_SUBMODULES}
         WORKING_DIRECTORY "${OPENTS_SOURCE_DIR}"
         OUTPUT_VARIABLE GIT_STATUS
         OUTPUT_STRIP_TRAILING_WHITESPACE

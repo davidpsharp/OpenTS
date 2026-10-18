@@ -1,0 +1,39 @@
+diff --git a/src/video/riscos/SDL_riscosmodes.c b/src/video/riscos/SDL_riscosmodes.c
+index 0da0cc8..65375b1 100644
+--- a/src/video/riscos/SDL_riscosmodes.c
++++ b/src/video/riscos/SDL_riscosmodes.c
+@@ -289,6 +289,34 @@ bool RISCOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SD
+     _kernel_oserror *error;
+     int i;
+ 
++    /* OpenTS: a mode change resets the screen (a black flash, and the full-screen game showing
++       again as it quits), so don't change to the mode the screen is in already, as going full
++       screen at the desktop's size and leaving it again would. */
++    {
++        int *current = (int *)-1;
++        int width = read_mode_variable(current, 11) + 1;
++        int height = read_mode_variable(current, 12) + 1;
++        SDL_PixelFormat format = RISCOS_ModeToPixelFormat(read_mode_variable(current, 3), read_mode_variable(current, 0),
++                                                          read_mode_variable(current, 9));
++        int wanted_rate = -1, current_rate = -1;
++        const int *want = (const int *)mode->internal;
++        if (want && (want[0] & 0xFF) == 1) {
++            wanted_rate = want[4];
++        }
++        regs.r[0] = 1;
++        if (!_kernel_swi(OS_ScreenMode, &regs, &regs) && (unsigned)regs.r[1] >= 256) {
++            const int *block = (const int *)regs.r[1];
++            if ((block[0] & 0xFF) == 1) {
++                current_rate = block[4];
++            } else if ((block[0] & 0xFF) == 3) {
++                current_rate = block[6];
++            }
++        }
++        if (width == mode->w && height == mode->h && format == mode->format &&
++            (wanted_rate == -1 || current_rate == -1 || wanted_rate == current_rate)) {
++            return true;
++        }
++    }
+     regs.r[0] = 0;
+     regs.r[1] = (int)mode->internal;
+     error = _kernel_swi(OS_ScreenMode, &regs, &regs);
