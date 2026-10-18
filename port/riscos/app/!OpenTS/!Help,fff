@@ -130,6 +130,22 @@ Saved games are in !OpenTS.Saved Games. They can be moved between RISC OS
 and OpenTS on other computers.
 
 
+Network play
+------------
+
+Choose Multiplayer Game, then Network. One player chooses New to set up a
+game; the others on the same local network see it in the list and choose
+Join.
+
+  * Every player needs this version of OpenTS for RISC OS, and must have
+    started the same game (Tiberian Sun or Firestorm).
+  * All the machines must be on the same subnet. Wired Ethernet is
+    recommended: some wireless networks drop the broadcast messages that
+    the game uses to find other players.
+  * The game uses UDP port 1234.
+  * Games over the internet aren't supported yet.
+
+
 Problems
 --------
 
