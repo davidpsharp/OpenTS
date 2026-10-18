@@ -28,6 +28,8 @@
 #include <cstring>
 #include <vector>
 
+void Emergency_Exit(void);
+
 static SDL_Window * _Window = nullptr;
 static SDL_Surface * _Screen = nullptr;
 static SoftScreen _Soft;
@@ -498,13 +500,22 @@ void Backend_End_Frame(void)
 		if (now - start >= 5000) {
 			double const seconds = (double)(now - start) / 1000.0;
 			double const per = count > 0 ? 1.0e6 * count : 1.0;
-			DebugString("Video: %.1f frames a second presented, %.1f game frames; ms a frame: scale %.2f, UI %.2f, pointer %.3f, blit %.2f, system %.2f\n",
-				count / seconds, (Frame - startframe) / seconds, _TimeFrame / per, _TimeOverlay / per, _TimePointer / per, _TimeBlit / per, _TimeUpdate / per);
+			DebugString("Video: %.1f frames a second presented, %.1f game frames; ms a frame: scale %.2f, UI %.2f, pointer %.3f, blit %.2f, system %.2f; game frame %d\n",
+				count / seconds, (Frame - startframe) / seconds, _TimeFrame / per, _TimeOverlay / per, _TimePointer / per, _TimeBlit / per, _TimeUpdate / per, Frame);
 			_TimeFrame = _TimeOverlay = _TimePointer = _TimeBlit = _TimeUpdate = 0;
 			start = now;
 			count = 0;
 			startframe = Frame;
 		}
+	}
+
+	// OPENTS_QUITFRAME=<n> quits once game frame n has been reached, for timing runs that
+	// nobody watches (a game holding the machine can't be told to stop from outside).
+	static int const quitframe = getenv("OPENTS_QUITFRAME") != nullptr ? atoi(getenv("OPENTS_QUITFRAME")) : 0;
+	if (quitframe > 0 && Frame >= quitframe) {
+		DebugString("Video: game frame %d reached, quitting (OPENTS_QUITFRAME)\n", Frame);
+		Emergency_Exit();
+		exit(0);
 	}
 
 	bool const uidrew = _UIDrew;
