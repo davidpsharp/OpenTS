@@ -39,7 +39,7 @@ docker run --rm -v "$PWD":/work opents-riscos /work/port/riscos/package.sh
 ```
 
 `package.sh` makes `build/riscos/!OpenTS`, with the program converted to AIF and the `ui`
-directory. The game data goes in its `gamedata` directory, with RISC OS names (`gamedata.TIBSUN/MIX`), installed from the CD images dragged onto the icon bar icon (`tools/tsprep.c`); the game adds `gamedata` to its search path. `!Run` loads SharedUnixLibrary,
+directory. The game data goes in its `gamedata` directory, with RISC OS names (`gamedata.TIBSUN/MIX`), installed from the CD images dragged onto the icon bar icon (`tools/tsprep.c`, which records each install in `gamedata.InstallLog`: the machine, each image and the disc it was found to be, a line per file with its result, and the outcome; it goes in `<Wimp$ScrapDir>.OpenTSInstallLog` if gamedata can't take it); the game adds `gamedata` to its search path. `!Run` loads SharedUnixLibrary,
 ARMEABISupport and DigitalRenderer, and passes its arguments on, so `-SPAWN` works.
 
 RISC OS on ARMv7 faults on unaligned loads and stores, which Westwood's data formats invite.

@@ -104,6 +104,10 @@ icon again to finish. Files already installed are skipped, so that's
 always safe, and a disc added later (the Nod disc after the GDI one, say)
 just adds its files.
 
+If installing goes wrong, the file InstallLog in the gamedata directory
+records what happened; to see it, Shift-double-click !OpenTS to open
+the application. Please include it when you report the problem.
+
 The game recognises each disc by its contents, and says so if it's the
 wrong one: a C&C95 (Tiberian Dawn) or Red Alert disc goes on the
 !VanillaTD or !VanillaRA icon. It spots a download that didn't finish,

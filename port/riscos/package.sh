@@ -21,7 +21,9 @@ awk '{ print } /font-family: Arimo;/ { arimo = 1 } arimo && /^}/ { printf "\n* \
 
 # The installer, which reads the CD images.
 mkdir -p "$OUT/Utils"
-$ENV/bin/arm-riscos-gnueabihf-gcc -O2 -static -o /work/build/riscos/tsprep /work/port/riscos/tools/tsprep.c
+# The build it names in its install log.
+BUILD=$(git -C /work describe --tags --always --dirty 2>/dev/null || date +%Y%m%d)
+$ENV/bin/arm-riscos-gnueabihf-gcc -O2 -static -DTOOLS_BUILD="\"$BUILD\"" -o /work/build/riscos/tsprep /work/port/riscos/tools/tsprep.c
 $ENV/bin/arm-riscos-gnueabihf-strip /work/build/riscos/tsprep
 $ENV/bin/elf2aif -e /work/build/riscos/tsprep "$OUT/Utils/tsprep,ff8" >/dev/null
 
