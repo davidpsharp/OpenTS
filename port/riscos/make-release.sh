@@ -6,7 +6,7 @@
 #   e.g. port/riscos/make-release.sh preview-20261007
 VERSION=${1:?usage: make-release.sh <version> [--no-build]}
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-if [ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]; then
+if [ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no --ignore-submodules=dirty)" ]; then
     echo "warning: uncommitted changes; the main menu will show a modified build" >&2
 fi
 if [ "${2:-}" != --no-build ]; then
