@@ -21,8 +21,12 @@ awk '{ print } /font-family: Arimo;/ { arimo = 1 } arimo && /^}/ { printf "\n* \
 
 # The installer, which reads the CD images.
 mkdir -p "$OUT/Utils"
-# The build it names in its install log.
-BUILD=$(git -C /work describe --tags --always --dirty 2>/dev/null || date +%Y%m%d)
+# The build it names in its install log. Like the game's own stamp, it isn't called dirty
+# for the SDL submodule, which build.sh patches from the patches kept in this repository.
+BUILD=$(git -C /work describe --tags --always 2>/dev/null || date +%Y%m%d)
+if [ -n "$(git -C /work status --porcelain --untracked-files=no --ignore-submodules=dirty 2>/dev/null)" ]; then
+	BUILD="$BUILD-dirty"
+fi
 $ENV/bin/arm-riscos-gnueabihf-gcc -O2 -static -DTOOLS_BUILD="\"$BUILD\"" -o /work/build/riscos/tsprep /work/port/riscos/tools/tsprep.c
 $ENV/bin/arm-riscos-gnueabihf-strip /work/build/riscos/tsprep
 $ENV/bin/elf2aif -e /work/build/riscos/tsprep "$OUT/Utils/tsprep,ff8" >/dev/null
