@@ -349,6 +349,11 @@ unsigned LookSince = 0;
 int InstallDiscs = 0;             // the discs (DISC_GDI etc.) being installed, for the message after
 bool InstallMovies = true;
 bool WantMovies = true;
+// The game reads its MIX files once, as it starts (after the first click): data installed after
+// that is only used once OpenTS has started again.
+bool DataLoaded = false;
+bool NeedsRestart = false; // data was installed after the game had read its own
+bool ResumeGame = false;   // a button said to go back to the game
 
 unsigned Now(void)
 {
@@ -392,6 +397,22 @@ std::string Data_Problem(void)
 		return("");
 	}
 	return(Os_Variable("OpenTS$DataProblem"));
+}
+
+/*
+** Quits, and has the Filer start OpenTS again: Filer_Run only queues the run, so the Filer starts
+** it once this task has gone and the two are never in memory together. OpenTS$Restart has the new
+** one go straight into the game.
+*/
+void Restart_Game(void)
+{
+	std::string command = "Filer_Run " + Os_Variable("OpenTS$Dir");
+	fprintf(stderr, "desktop: restarting (%s)\n", command.c_str());
+	Set_Os_Variable("OpenTS$Restart", "1");
+	_kernel_swi_regs regs;
+	regs.r[0] = (int)command.c_str();
+	Swi(OS_CLI, regs);
+	Quit_Game();
 }
 
 void Open_Help(void)
@@ -565,7 +586,7 @@ int MessageWindow = -1;
 int ProgressIcon = -1;
 char MessageLines[MaxLines][100];
 // A button's action: what a click on it, Return (the last button) or Escape (the first) does.
-enum MessageAction { ACT_CLOSE, ACT_DATA_ONLY, ACT_WITH_MOVIES };
+enum MessageAction { ACT_CLOSE, ACT_DATA_ONLY, ACT_WITH_MOVIES, ACT_PLAY_ON, ACT_RESTART };
 int const MaxButtons = 3;
 char ButtonText[MaxButtons][24];
 int ButtonCount = 0;
@@ -932,9 +953,17 @@ void Start_Install(void)
 	fprintf(stderr, "desktop: %s\n", command.c_str());
 	_kernel_swi_regs regs;
 	regs.r[0] = (int)command.c_str();
+	// Wimp_StartTask runs the task window straight away, with this task paged out, so (as around
+	// Wimp_Poll) the game's handlers and threads mustn't be in place meanwhile.
+	__pthread_stop_ticker();
+	HandlerType game_handlers[Swapped_Count];
+	Use_Default_Handlers(game_handlers);
 	_kernel_oserror * error = _kernel_swi(Wimp_StartTask, &regs, &regs);
+	std::string why = error != nullptr ? error->errmess : "";
+	Use_Game_Handlers(game_handlers);
+	__pthread_start_ticker();
 	if (error != nullptr) {
-		Tell(std::string("The installer couldn't be started in a task window: ") + error->errmess, true);
+		Tell("The installer couldn't be started in a task window: " + why, true);
 		return;
 	}
 	Installing = true;
@@ -951,6 +980,15 @@ void Message_Button(int button)
 {
 	MessageAction action = button >= 0 && button < ButtonCount ? ButtonAction[button] : ACT_CLOSE;
 	Close_Message();
+	if (action == ACT_PLAY_ON) {
+		NeedsRestart = false; // the new data waits until OpenTS is next started
+		ResumeGame = true;
+		return;
+	}
+	if (action == ACT_RESTART) {
+		Restart_Game();
+		return;
+	}
 	if (action == ACT_CLOSE) {
 		Pending.clear();
 		ToLook.clear();
@@ -1032,7 +1070,10 @@ void Install_Finished(void)
 	if (failed == 0 && others == 0) {
 		text += " All three discs are installed" + std::string(without_movies ? " (" + Disc_List(without_movies) + " without the movies)" : "") + ".";
 	}
-	if (problem.empty()) {
+	if (problem.empty() && DataLoaded && done != 0) {
+		NeedsRestart = true;
+		text += " OpenTS has to start again to use it: click the icon to restart it.";
+	} else if (problem.empty()) {
 		text += " Click the icon to play.";
 	} else if (failed == 0) {
 		text += " Tiberian Sun also needs the GDI disc before it can be played.";
@@ -1134,6 +1175,12 @@ void Wait_For_Icon_Click(void)
 							Explain_No_Data();
 							break;
 						}
+						if (NeedsRestart) {
+							Show_Message("OpenTS starts again to load the data just installed, and a game in progress is lost. "
+								"To keep it, play on and save it; the new data is then used the next time OpenTS starts.", false,
+								{{"Play on", ACT_PLAY_ON}, {"Restart", ACT_RESTART}});
+							break;
+						}
 						Close_Message();
 						return;
 					}
@@ -1172,6 +1219,10 @@ void Wait_For_Icon_Click(void)
 
 			default:
 				break;
+		}
+		if (ResumeGame) {
+			ResumeGame = false;
+			return;
 		}
 	}
 }
@@ -1272,6 +1323,12 @@ void RISCOS_Desktop_Start(bool wait)
 	if (no_data) {
 		fprintf(stderr, "desktop: no game data (%s)\n", Data_Problem().c_str());
 	}
+	// Started again to load newly installed data: straight into the game.
+	if (!Os_Variable("OpenTS$Restart").empty()) {
+		Set_Os_Variable("OpenTS$Restart", nullptr);
+		fprintf(stderr, "desktop: restarted\n");
+		wait = false;
+	}
 	// OPENTS_NODESKTOP (for tests) skips the wait, but never when there is no data to play with.
 	if (IconHandle >= 0 && (no_data || (wait && getenv("OPENTS_NODESKTOP") == nullptr))) {
 		fprintf(stderr, "desktop: waiting for a click on the icon bar\n");
@@ -1282,6 +1339,7 @@ void RISCOS_Desktop_Start(bool wait)
 	// The game takes the screen from here on: the desktop's pointer off while it loads, before
 	// it has drawn anything (or its own pointer).
 	RISCOS_Pointer_Game_Takes_Screen();
+	DataLoaded = true;
 }
 
 

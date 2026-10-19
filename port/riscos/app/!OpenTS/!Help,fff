@@ -86,7 +86,9 @@ them directly: no CD drive or CDFS is needed. Meanwhile a window shows
 which file it's copying and how far it has got, and the desktop carries
 on as usual; each disc takes a few minutes. When it has finished, the
 window says which discs are installed and which you can still add; click
-the icon to play.
+the icon to play. The game reads its data as it starts, so a disc added
+once it has started (from the desktop, with Shift+F12) is used after it
+starts again: clicking the icon offers to restart it, or to play on.
 
 Deleting the gamedata directory uninstalls the game data: the game then
 asks for the CD images again. Your settings (sun/ini), saved games and
