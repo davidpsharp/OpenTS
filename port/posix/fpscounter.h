@@ -8,7 +8,7 @@
  ******************************************************************************/
 
 /*
-** The frame rate counter (F8): the number of frames a second actually presented, small and bright
+** The frame rate counter (Shift+F8): the number of frames a second actually presented, small and bright
 ** green with a black outline in the bottom right corner of the screen. It is drawn only into the
 ** picture on its way to the display (softbackend.cpp), never into a game surface, so it can't
 ** change the game or its sync. Off, it costs one test of FPS_Counter_On per presented frame.
@@ -20,7 +20,7 @@
 // Whether the counter is showing. Read it directly; change it with FPS_Counter_Toggle.
 extern bool FPS_Counter_On;
 
-// F8 pressed: shows or hides it (and logs which).
+// Shift+F8 pressed: shows or hides it (and logs which).
 void FPS_Counter_Toggle(void);
 
 // Call once for each frame that went to the display. Nothing happens while the counter is off.

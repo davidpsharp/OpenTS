@@ -573,13 +573,23 @@ void Main_Window_Pump_Events(void)
 			continue;
 		}
 #ifndef _WIN32
-		// F8 shows or hides the frame rate counter. The game never sees the key, down or up.
-		if ((sdlevent.type == SDL_EVENT_KEY_DOWN || sdlevent.type == SDL_EVENT_KEY_UP) && sdlevent.key.key == SDLK_F8) {
-			if (sdlevent.type == SDL_EVENT_KEY_DOWN && !sdlevent.key.repeat) {
-				FPS_Counter_Toggle();
-				Video_Mark_Overlay_Dirty();
+		// Shift+F8 shows or hides the frame rate counter. The game never sees the key, down or up
+		// (plain F8 is the game's own: chat to everyone in a network game). Its key up is taken
+		// even if Shift was let go first.
+		{
+			static bool counter_key_down = false;
+			if (sdlevent.type == SDL_EVENT_KEY_DOWN && sdlevent.key.key == SDLK_F8 && (sdlevent.key.mod & SDL_KMOD_SHIFT) != 0) {
+				if (!sdlevent.key.repeat) {
+					FPS_Counter_Toggle();
+					Video_Mark_Overlay_Dirty();
+				}
+				counter_key_down = true;
+				continue;
 			}
-			continue;
+			if (sdlevent.type == SDL_EVENT_KEY_UP && sdlevent.key.key == SDLK_F8 && counter_key_down) {
+				counter_key_down = false;
+				continue;
+			}
 		}
 #endif
 		if (!Watched(sdlevent.type)) {

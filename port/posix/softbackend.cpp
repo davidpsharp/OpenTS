@@ -499,7 +499,7 @@ void Backend_End_Frame(void)
 	Uint64 const pointerstart = SDL_GetTicksNS();
 	RISCOS_Pointer_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift);
 	_TimePointer += SDL_GetTicksNS() - pointerstart;
-	// The frame rate counter (F8), over the picture the display will show.
+	// The frame rate counter (Shift+F8), over the picture the display will show.
 	if (FPS_Counter_On && !_Skipped) {
 		FPS_Counter_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift, FPS_Font_Scale(_Soft.Height));
 	}

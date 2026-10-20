@@ -14,7 +14,7 @@
 #include <chrono>
 #include <cstdlib>
 
-// OPENTS_FPSCOUNTER=1 starts with the counter on, for runs nobody can press F8 in.
+// OPENTS_FPSCOUNTER=1 starts with the counter on, for runs nobody can press Shift+F8 in.
 bool FPS_Counter_On = getenv("OPENTS_FPSCOUNTER") != nullptr;
 
 namespace

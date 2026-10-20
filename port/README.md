@@ -82,14 +82,14 @@ nobody is watching:
 
 On RISC OS these are system variables (`*Set OPENTS_FPS 1`).
 
-F8 shows or hides a frame rate counter: the number of frames a second actually presented
+Shift+F8 shows or hides a frame rate counter: the number of frames a second actually presented
 (averaged over about a second), in small bright green digits with a black outline in the bottom
 right corner. It is drawn only into the picture on its way to the display (`posix/fpscounter.cpp`,
 `softbackend.cpp`), never into a game surface, so it can't change the game or its sync; it is off
 each time the game starts. Through the Pi's hardware overlay it is drawn in the overlay's frame,
 so it sits in the corner of the game's area, and a frame stretched to the screen stretches it too.
-The game never sees F8, so it doesn't open a chat line to everyone in a network game (Enter
-does). `port/tools/fpsfont_test.cpp` draws the digits into a picture on the host, to look at.
+The game never sees Shift+F8 (plain F8 is still the game's chat to everyone in a network game).
+`port/tools/fpsfont_test.cpp` draws the digits into a picture on the host, to look at.
 
 On a Raspberry Pi 4 a 640x480 skirmish runs at 60 game frames a second, the game's fastest
 speed.
