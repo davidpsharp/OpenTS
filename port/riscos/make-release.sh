@@ -84,6 +84,6 @@ mkdir -p "$OUT"
 ZIP=$OUT/OpenTS-riscos-$NAME.zip
 rm -f "$ZIP"
 python3 "$ROOT/port/riscos/tools/riscos-zip.py" "$ZIP" "$ROOT/build/riscos/!OpenTS" >/dev/null
-unzip -p "$ZIP" '!OpenTS/!Help,fff' | head -n 1
+unzip -p "$ZIP" '!OpenTS/!Help' | head -n 1
 unzip -l "$ZIP" | tail -1
 shasum -a 256 "$ZIP"
