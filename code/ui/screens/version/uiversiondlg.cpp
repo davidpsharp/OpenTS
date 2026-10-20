@@ -16,6 +16,9 @@
 #include "globals.h"
 #include "language/language.h"
 #include "opents_build.h"
+#if __has_include("opents_port.h")
+#include "opents_port.h"
+#endif
 #include "ui/screens/version/uiversion.h"
 #include "ui/uienginehost.h"
 #include "ui/uishell.h"
@@ -44,6 +47,11 @@ void UI_Version_Lines(std::vector<std::string> & lines)
 
 	std::snprintf(buffer, sizeof(buffer), "Internal Version %s", VerNum.Version_Name());
 	lines.push_back(buffer);
+
+#ifdef OPENTS_PORT_VERSION_LINE
+	std::snprintf(buffer, sizeof(buffer), "RISC OS port %s", OPENTS_PORT_VERSION_LINE);
+	lines.push_back(buffer);
+#endif
 
 #ifdef _DEBUG
 	std::snprintf(buffer, sizeof(buffer), "Debug Build: %s - %s", OPENTS_BUILD_DESCRIPTION, OPENTS_COMMIT_DATE);

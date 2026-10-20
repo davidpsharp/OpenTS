@@ -46,6 +46,9 @@
 
 #include "globals.h"
 #include "opents_build.h"
+#if __has_include("opents_port.h")
+#include "opents_port.h"
+#endif
 #include "rawfile.h"
 #include "utf8.h"
 #include "winstub.h"
@@ -495,5 +498,14 @@ unsigned int VersionClass::Max_Version(void)
 /// <returns>Returns with the product version text.</returns>
 char const * Version_Name(void)
 {
+#if __has_include("opents_port.h")
+	// The RISC OS port has a number of its own, which says whether this is the release.
+	static char name[160];
+	if (name[0] == '\0') {
+		snprintf(name, sizeof(name), "%s RISC OS port %s", OPENTS_VERSION_DISPLAY, OPENTS_PORT_VERSION);
+	}
+	return(name);
+#else
 	return(OPENTS_VERSION_DISPLAY);
+#endif
 }

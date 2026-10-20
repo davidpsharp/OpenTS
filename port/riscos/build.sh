@@ -3,11 +3,14 @@
 #   docker run --rm -v <repo>:/work opents-riscos /work/port/riscos/build.sh
 # RISC OS fixes to SDL's RISC OS driver, kept here as patches (thirdparty/SDL is upstream's
 # submodule); each is applied once, so building again leaves it as it is.
-for p in /work/port/riscos/patches/sdl-*.patch; do
-  if ! git -C /work/thirdparty/SDL apply --reverse --check "$p" 2>/dev/null; then
-    git -C /work/thirdparty/SDL apply "$p"
+# The repository: where this script is, so a mount at any path works (a git worktree needs its
+# repository mounted at the same path as on the host, for the .git file to find it).
+W=$(cd "$(dirname "$0")/../.." && pwd)
+for p in $W/port/riscos/patches/sdl-*.patch; do
+  if ! git -C $W/thirdparty/SDL apply --reverse --check "$p" 2>/dev/null; then
+    git -C $W/thirdparty/SDL apply "$p"
   fi
 done
-cmake -S /work/port -B /work/build/riscos -G Ninja -DOPENTS_SUBMODULES_PATCHED=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RelWithDebInfo} \
-  -DCMAKE_TOOLCHAIN_FILE=/work/port/riscos/toolchain.cmake
-cmake --build /work/build/riscos -j"$(nproc)" "$@"
+cmake -S $W/port -B $W/build/riscos -G Ninja -DOPENTS_SUBMODULES_PATCHED=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RelWithDebInfo} \
+  -DCMAKE_TOOLCHAIN_FILE=$W/port/riscos/toolchain.cmake
+cmake --build $W/build/riscos -j"$(nproc)" "$@"

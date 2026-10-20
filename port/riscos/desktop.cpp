@@ -38,6 +38,7 @@
 #include "riscosoverlay.h"
 #include "riscospointer.h"
 #include "opents_build.h"
+#include "opents_port.h"
 #include "opents_version.h"
 
 #include <kernel.h>
@@ -134,7 +135,9 @@ void Indirected(Icon & icon, int x0, int y0, int x1, int y1, unsigned flags, cha
 void Create_Info_Window(void)
 {
 	static char version[64];
-	snprintf(version, sizeof(version), "%s (%s, %.10s)", OPENTS_VERSION, OPENTS_COMMIT, OPENTS_COMMIT_DATE);
+	// The port's own version and the date of its commit: "0.1.0 (20 Oct 2026)" for the release,
+	// "0.1.0-dev (<commit>[, modified])" for any other build.
+	snprintf(version, sizeof(version), "%s", OPENTS_PORT_VERSION_INFO);
 
 	static struct {
 		int visible[4];

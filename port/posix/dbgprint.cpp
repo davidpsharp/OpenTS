@@ -13,6 +13,8 @@
 */
 
 #include "dbgprint.h"
+#include "opents_build.h"
+#include "opents_port.h"
 #include "../compat/windows.h"
 
 #include <cerrno>
@@ -63,6 +65,8 @@ bool Delete_Files_Older_Than(char const * directory, char const * pattern, unsig
 	return(true);
 }
 
+static void Write_Text_Locked(char const * text, size_t length);
+
 static void Init_Locked(void)
 {
 	if (DebugInitDone) {
@@ -101,6 +105,12 @@ static void Init_Locked(void)
 		}
 #endif
 	}
+
+	// The first line of every log (and of stderr): which build this is.
+	char banner[256];
+	int const length = snprintf(banner, sizeof(banner), "OpenTS %s, engine %s (%s on %s%s)\n", OPENTS_PORT_VERSION_LINE,
+		OPENTS_VERSION, OPENTS_COMMIT, OPENTS_BRANCH, OPENTS_COMMIT_DIRTY ? ", modified" : "");
+	Write_Text_Locked(banner, size_t(length));
 }
 
 static void Write_Text_Locked(char const * text, size_t length)
