@@ -16,6 +16,7 @@
 
 #include "bgfxbackend.h"
 #include "dbgprint.h"
+#include "fpscounter.h"
 #include "ftimer.h"
 #include "riscosdesktop.h"
 #include "riscosoverlay.h"
@@ -83,6 +84,15 @@ static void Draw_Overlay_Frame(void * pixels, int pitch)
 	}
 	RISCOS_Pointer_Draw_Into_Frame((std::uint32_t *)pixels, pitch / 4, _FrameWidth, _FrameHeight, _Soft.RedShift, _Soft.BlueShift,
 		_DestX, _DestY, _DestWidth, _DestHeight);
+	if (FPS_Counter_On) {
+		// The display stretches the frame, so a font pixel of the frame is that much bigger
+		// on the screen; the counter is drawn in the frame's corner.
+		int unit = FPS_Font_Scale(_Soft.Height);
+		if (_DestWidth > 0) {
+			unit = std::max(1, (int)((long long)unit * _FrameWidth * 2 / _DestWidth + 1) / 2);
+		}
+		FPS_Counter_Draw((std::uint32_t *)pixels, pitch / 4, _FrameWidth, _FrameHeight, _Soft.RedShift, _Soft.BlueShift, unit);
+	}
 }
 
 // 565 to 0xFFRRGGBB, with the low bits filled from the high ones so white stays white.
@@ -489,6 +499,10 @@ void Backend_End_Frame(void)
 	Uint64 const pointerstart = SDL_GetTicksNS();
 	RISCOS_Pointer_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift);
 	_TimePointer += SDL_GetTicksNS() - pointerstart;
+	// The frame rate counter (F8), over the picture the display will show.
+	if (FPS_Counter_On && !_Skipped) {
+		FPS_Counter_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift, FPS_Font_Scale(_Soft.Height));
+	}
 
 	// OPENTS_SHOT=<file.bmp> saves the screen every 60 frames, for checking a run unseen.
 	static char const * const shot = getenv("OPENTS_SHOT");
@@ -544,6 +558,7 @@ void Backend_End_Frame(void)
 				_DestX, _DestY, _DestWidth, _DestHeight, Draw_Overlay_Frame)) {
 			_TimeBlit += SDL_GetTicksNS() - showstart;
 			if (_Skipped) {
+				FPS_Counter_Presented();
 				return;
 			}
 		} else if (_Skipped) {
@@ -555,6 +570,9 @@ void Backend_End_Frame(void)
 			Clear_Borders(_DestX, _DestY, _DestWidth, _DestHeight);
 			Scale_Frame(_DestX, _DestY, _DestWidth, _DestHeight);
 			RISCOS_Pointer_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift);
+			if (FPS_Counter_On) {
+				FPS_Counter_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift, FPS_Font_Scale(_Soft.Height));
+			}
 		}
 	}
 	if (uidrew || !RISCOS_Overlay_Available()) {
@@ -579,6 +597,7 @@ void Backend_End_Frame(void)
 	Uint64 const done = SDL_GetTicksNS();
 	_TimeBlit += updatestart - blitstart;
 	_TimeUpdate += done - updatestart;
+	FPS_Counter_Presented();
 }
 
 

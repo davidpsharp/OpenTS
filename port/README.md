@@ -77,12 +77,49 @@ nobody is watching:
 | `OPENTS_FOCUS=1` | Starts as if the window had the focus. |
 | `OPENTS_SHOT=<file.bmp>` | Saves the screen for each of the first 10 frames presented, then every 60th. |
 | `OPENTS_FPS=1` | Logs the presented and game frame rates every five seconds. |
+| `OPENTS_FPSCOUNTER=1` | Starts with the frame rate counter on (see below) and logs its value every five seconds. |
 | `OPENTS_SYNCLOG=1` | Logs a summary of the game state every 500 frames. The same `SPAWN.INI` game gives the same lines on the Mac and the Pi, so a difference shows where two machines part. |
 
 On RISC OS these are system variables (`*Set OPENTS_FPS 1`).
 
+F8 shows or hides a frame rate counter: the number of frames a second actually presented
+(averaged over about a second), in small bright green digits with a black outline in the bottom
+right corner. It is drawn only into the picture on its way to the display (`posix/fpscounter.cpp`,
+`softbackend.cpp`), never into a game surface, so it can't change the game or its sync; it is off
+each time the game starts. Through the Pi's hardware overlay it is drawn in the overlay's frame,
+so it sits in the corner of the game's area, and a frame stretched to the screen stretches it too.
+The game never sees F8, so it doesn't open a chat line to everyone in a network game (Enter
+does). `port/tools/fpsfont_test.cpp` draws the digits into a picture on the host, to look at.
+
 On a Raspberry Pi 4 a 640x480 skirmish runs at 60 game frames a second, the game's fastest
 speed.
+
+## Versioning
+
+The port has its own version, by [semantic versioning](https://semver.org): `port/VERSION` is the
+one place it is written (the engine's own, in `CMakeLists.txt`, belongs to the save and network
+stamps and is a different number). The first release is 0.1.0.
+
+The build writes it, as `opents_port.h` (`port/PortVersion.cmake`), to the Info window in the
+icon's menu, the top line of `!Help` (with the date), the first line of the log and `stderr`, and
+the main menu's version line. A build is a **release** only if the tree is clean (changes inside
+submodules don't count: the build patches SDL) and HEAD is exactly the commit that the annotated
+tag `riscos-v<version>` points at; then the text is just `0.1.0`. Any other build says `0.1.0-dev`
+and names its commit, with `modified` if the tree has changes, so it can't be taken for the release.
+The date is that of the commit, so building a commit again gives the same text. (The tag is
+`riscos-v...` rather than `v...` because the upstream project's own releases use `v...`; upstream
+has a `v0.1.0` already.)
+
+To cut a release:
+
+1. Set `port/VERSION` (for example 0.1.1) and commit it, with any last changes.
+2. Tag that commit: `git tag -a riscos-v0.1.1 -m "OpenTS 0.1.1 for RISC OS"`.
+3. `port/riscos/make-release.sh 0.1.1` builds in Docker and writes `build/release/OpenTS-riscos-0.1.1.zip`.
+   It stops, saying why, if the version isn't `port/VERSION`, the tree isn't clean, or HEAD isn't the
+   tagged commit; after building it checks that the program says exactly that version.
+   `OPENTS_DEV_BUILD=1` makes a `-dev` zip of any other state, for testing.
+4. Check it: the Info window, `!Help`'s first line and the log's first line all say `0.1.1`.
+5. Push the commit and the tag (`git push origin riscos riscos-v0.1.1`).
 
 ## Known gaps
 

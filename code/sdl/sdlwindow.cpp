@@ -33,6 +33,7 @@
 #include "riscosdesktop.h"
 #include "riscostext.h"
 #include "riscospointer.h"
+#include "fpscounter.h"
 #endif
 
 
@@ -571,6 +572,16 @@ void Main_Window_Pump_Events(void)
 			}
 			continue;
 		}
+#ifndef _WIN32
+		// F8 shows or hides the frame rate counter. The game never sees the key, down or up.
+		if ((sdlevent.type == SDL_EVENT_KEY_DOWN || sdlevent.type == SDL_EVENT_KEY_UP) && sdlevent.key.key == SDLK_F8) {
+			if (sdlevent.type == SDL_EVENT_KEY_DOWN && !sdlevent.key.repeat) {
+				FPS_Counter_Toggle();
+				Video_Mark_Overlay_Dirty();
+			}
+			continue;
+		}
+#endif
 		if (!Watched(sdlevent.type)) {
 			Handle_SDL_Event(sdlevent);
 		}
