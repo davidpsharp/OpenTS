@@ -111,11 +111,14 @@ void Movie_Blit_To_Screen(void)
 VQHandle * Movie_Create(char const * name, Surface * surface, Rect rect1, Rect rect2, int volume, bool fullscreen)
 {
 	VQA_SURF_DRAW_CALLBACK callback = NULL;
+
+	// Ahead of the handle, so a missing movie doesn't leave one behind.
+	if (!CCFileClass(name).Is_Available()) {
+		return(NULL);
+	}
+
 	VQHandle *handle = new VQHandle;
 	if (handle != NULL) {
-		if (!CCFileClass(name).Is_Available()) {
-			return(NULL);
-		}
 		int flags = 0;
 
 		if (!AudioEngine.Is_Available()) {
