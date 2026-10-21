@@ -195,5 +195,7 @@ if(OPENTS_ALIGNCHECK)
     target_compile_options(OpenTS PRIVATE -fsanitize=alignment -fno-omit-frame-pointer)
     # Mix files are handed out aligned, as on RISC OS, so only what RISC OS would hit is reported.
     target_compile_definitions(OpenTS PRIVATE OPENTS_ALIGNED_RETRIEVE)
+    # Reports what a 32-bit ARM machine would fault on, every time, in place of the sanitizer's own.
+    target_sources(OpenTS PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools/aligncheck.cpp")
     target_link_options(OpenTS PRIVATE -fsanitize=alignment)
 endif()

@@ -44,7 +44,8 @@ ARMEABISupport and DigitalRenderer, and passes its arguments on, so `-SPAWN` wor
 
 RISC OS on ARMv7 faults on unaligned loads and stores, which Westwood's data formats invite.
 `-DOPENTS_ALIGNCHECK=ON` builds a Mac binary with the alignment sanitizer that reports
-each one, and a `SPAWN.INI` like this one starts a skirmish without the menus (`-SPAWN`):
+each one (`ALIGNCHECK:` lines on stderr, from `tools/aligncheck.cpp`: only addresses a 32-bit ARM
+would fault on, each place every time its address differs mod 4, and a count at exit), and a `SPAWN.INI` like this one starts a skirmish without the menus (`-SPAWN`):
 
 ```ini
 [Settings]
