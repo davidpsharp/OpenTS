@@ -4890,8 +4890,26 @@ FacingType CellClass::Bounce_Direction(Coord const & xorigin) const
 	int dx = CellID.X - origin.X;
 	int dy = CellID.Y - origin.Y;
 
-	static FacingType _facing_lookup[5] = { FACING_NONE, FACING_E, FACING_SW, FACING_S, FACING_SE }; /// the index below is not range checked
-	FacingType base_direction = _facing_lookup[(CellID.X - origin.X) + 3 * (CellID.Y - origin.Y)]; /// dx + 3 * dy
+	static FacingType _facing_lookup[5] = { FACING_NONE, FACING_E, FACING_SW, FACING_S, FACING_SE };
+	int lookup_index = dx + 3 * dy;
+	FacingType base_direction;
+	if (lookup_index >= 0 && lookup_index < 5) {
+		base_direction = _facing_lookup[lookup_index];
+	} else {
+		/*
+		**	The original read its five entry table outside its bounds here (a step towards the
+		**	north or west), which gave whatever lay in memory before it, and a facing that
+		**	Get_Bounce_Matrix then used as an index. The direction the signs give is used instead.
+		*/
+		static FacingType _sign_lookup[9] = {
+			FACING_NW, FACING_N, FACING_NE,
+			FACING_W, FACING_NONE, FACING_E,
+			FACING_SW, FACING_S, FACING_SE
+		};
+		int sx = (dx > 0) - (dx < 0);
+		int sy = (dy > 0) - (dy < 0);
+		base_direction = _sign_lookup[(sy + 1) * 3 + (sx + 1)];
+	}
 
 	if (dx != 0 && dy != 0) {
 		bool bounce_left;
@@ -4913,7 +4931,7 @@ FacingType CellClass::Bounce_Direction(Coord const & xorigin) const
 			}
 		} else {
 			if (bounce_right) {
-				return((FacingType)(base_direction + FACING_45));
+				return(Facing_Add(base_direction, FACING_45));
 			} else {
 				return((FacingType)base_direction);
 			}
