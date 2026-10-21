@@ -34,8 +34,37 @@ static inline uint16_t Read_Pointer(uint8_t const * src)
 	return(value);
 }
 
+/*
+** Stores one 32-bit word (two 16-bit pixels) in the frame. The movie can be drawn at any pixel
+** column, so the destination is only guaranteed to be 2-byte aligned, and a word store to it
+** faults on ARMv7. Aligned is decided once per call by the exported decoders at the end of
+** the file, so the common case is still a plain word store.
+*/
+template<bool Aligned>
+static inline void Store32(uint8_t * p, uint32_t value)
+{
+	if (Aligned) {
+		*(uint32_t *)p = value;
+	} else {
+		uint16_t * h = (uint16_t *)p;
+		h[0] = (uint16_t)value;
+		h[1] = (uint16_t)(value >> 16);
+	}
+}
 
-void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+/* Stores a 32-bit word count times in a row, starting at p. */
+template<bool Aligned>
+static inline void Fill32(uint8_t * p, uint32_t value, uint32_t count)
+{
+	while (count > 0) {
+		Store32<Aligned>(p, value);
+		p += 4;
+		count--;
+	}
+}
+
+template<bool Aligned>
+static void __cdecl UnVQ2_C1_4x4_T(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
 {
 	bufwidth *= 2u;
 	uint32_t block_row_stride = bufwidth * 4u;
@@ -66,38 +95,10 @@ void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 
 			src += 1;
 
-			{
-				unsigned int * p = (unsigned int *)(dst);
-				unsigned int left = n;
-				while (left > 0) {
-					*p++ = v;
-					left--;
-				}
-			}
-			{
-				unsigned int * p = (unsigned int *)(dst + bufwidth);
-				unsigned int left = n;
-				while (left > 0) {
-					*p++ = v;
-					left--;
-				}
-			}
-			{
-				unsigned int * p = (unsigned int *)(dst + 2u * bufwidth);
-				unsigned int left = n;
-				while (left > 0) {
-					*p++ = v;
-					left--;
-				}
-			}
-			{
-				unsigned int * p = (unsigned int *)(dst + 3u * bufwidth);
-				unsigned int left = n;
-				while (left > 0) {
-					*p++ = v;
-					left--;
-				}
-			}
+			Fill32<Aligned>(dst, v, n);
+			Fill32<Aligned>(dst + bufwidth, v, n);
+			Fill32<Aligned>(dst + 2u * bufwidth, v, n);
+			Fill32<Aligned>(dst + 3u * bufwidth, v, n);
 
 			dst += 8u * count; /* advance horizontally by count blocks */
 		} break;
@@ -124,7 +125,7 @@ void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 					uint8_t * p = dst;
 
 					for (i = 0; i < count; i++) {
-						*(uint32_t *)p = lo;
+						Store32<Aligned>(p, lo);
 						p += 8;
 					}
 				}
@@ -138,7 +139,7 @@ void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 					uint8_t * p = dst + 4;
 
 					for (i = 0; i < count; i++) {
-						*(uint32_t *)p = hi;
+						Store32<Aligned>(p, hi);
 						p += 8;
 					}
 				}
@@ -211,8 +212,8 @@ void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 
 				/* write 4 rows of the 4x4 solid block */
 				for (j = 0; j < r; j++) {
-					*(uint32_t *)(p + 0) = v;
-					*(uint32_t *)(p + 4) = v;
+					Store32<Aligned>((p + 0), v);
+					Store32<Aligned>((p + 4), v);
 					p += step;
 				}
 
@@ -244,12 +245,12 @@ void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 					/* lo = assembled from two 16-bit loads */
 					lo = ((uint32_t)*(const uint16_t *)(cb + 2) << 16) | *(const uint16_t *)(cb + 0);
 					cb += 4;
-					*(uint32_t *)(p + 0) = lo;
+					Store32<Aligned>((p + 0), lo);
 
 					/* hi = assembled from two 16-bit loads */
 					hi = ((uint32_t)*(const uint16_t *)(cb + 2) << 16) | *(const uint16_t *)(cb + 0);
 					cb += 4;
-					*(uint32_t *)(p + 4) = hi;
+					Store32<Aligned>((p + 4), hi);
 
 					p += step;
 				}
@@ -301,7 +302,8 @@ void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 }
 
 
-void __cdecl UnVQ1_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+template<bool Aligned>
+static void __cdecl UnVQ1_C4_4x4_T(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
 {
 	bufwidth *= 2u;
 	uint32_t block_row_stride = bufwidth * 4u;
@@ -335,11 +337,11 @@ void __cdecl UnVQ1_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 
 				lo = ((uint32_t)*(const uint16_t *)(cb + 2) << 16) | *(const uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(dst + 0) = lo;
+				Store32<Aligned>((dst + 0), lo);
 
 				hi = ((uint32_t)*(const uint16_t *)(cb + 2) << 16) | *(const uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(dst + 4) = hi;
+				Store32<Aligned>((dst + 4), hi);
 
 				dst += bufwidth;
 			}
@@ -397,7 +399,8 @@ void __cdecl UnVQ1_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 }
 
 
-void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+template<bool Aligned>
+static void __cdecl UnVQ2_C4_4x4_T(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
 {
 	bufwidth *= 2u;
 	uint32_t block_row_stride = bufwidth * 4u;
@@ -433,11 +436,11 @@ void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 			for (uint32_t r = 0; r < 4; ++r) {
 				uint32_t lo = ((uint32_t)*(uint16_t *)(cb + 2) << 16) | *(uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(rowp + 0) = lo;
+				Store32<Aligned>((rowp + 0), lo);
 
 				uint32_t hi = ((uint32_t)*(uint16_t *)(cb + 2) << 16) | *(uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(rowp + 4) = hi;
+				Store32<Aligned>((rowp + 4), hi);
 
 				rowp += step;
 			}
@@ -453,11 +456,11 @@ void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 				for (uint32_t r = 0; r < 4; ++r) {
 					uint32_t lo = ((uint32_t)*(uint16_t *)(cb2 + 2) << 16) | *(uint16_t *)(cb2 + 0);
 					cb2 += 4;
-					*(uint32_t *)(p + 0) = lo;
+					Store32<Aligned>((p + 0), lo);
 
 					uint32_t hi = ((uint32_t)*(uint16_t *)(cb2 + 2) << 16) | *(uint16_t *)(cb2 + 0);
 					cb2 += 4;
-					*(uint32_t *)(p + 4) = hi;
+					Store32<Aligned>((p + 4), hi);
 
 					p += step;
 				}
@@ -502,11 +505,11 @@ void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 			for (uint32_t r = 0; r < 4; ++r) {
 				uint32_t lo = ((uint32_t)*(uint16_t *)(cb + 2) << 16) | *(uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(dst + 0) = lo;
+				Store32<Aligned>((dst + 0), lo);
 
 				uint32_t hi = ((uint32_t)*(uint16_t *)(cb + 2) << 16) | *(uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(dst + 4) = hi;
+				Store32<Aligned>((dst + 4), hi);
 
 				dst += bufwidth;
 			}
@@ -573,7 +576,7 @@ void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 						uint8_t * p = dst;
 						uint32_t i;
 						for (i = 0; i < height; i++) {
-							*(uint32_t *)p = lo;
+							Store32<Aligned>(p, lo);
 							p += 8;
 						}
 					}
@@ -585,7 +588,7 @@ void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 						uint8_t * p = dst + 4;
 						uint32_t i;
 						for (i = 0; i < height; i++) {
-							*(uint32_t *)p = hi;
+							Store32<Aligned>(p, hi);
 							p += 8;
 						}
 					}
@@ -633,7 +636,8 @@ void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 }
 
 
-void __cdecl UnVQ1_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+template<bool Aligned>
+static void __cdecl UnVQ1_C4_4x2_T(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
 {
 	bufwidth *= 2u;
 	uint32_t block_row_stride = bufwidth * 2u;
@@ -667,11 +671,11 @@ void __cdecl UnVQ1_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 
 				lo = ((uint32_t)*(const uint16_t *)(cb + 2) << 16) | *(const uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(dst + 0) = lo;
+				Store32<Aligned>((dst + 0), lo);
 
 				hi = ((uint32_t)*(const uint16_t *)(cb + 2) << 16) | *(const uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(dst + 4) = hi;
+				Store32<Aligned>((dst + 4), hi);
 
 				dst += bufwidth;
 			}
@@ -729,7 +733,8 @@ void __cdecl UnVQ1_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 }
 
 
-void __cdecl UnVQ2_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+template<bool Aligned>
+static void __cdecl UnVQ2_C4_4x2_T(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
 {
 	bufwidth *= 2u;
 	uint32_t block_row_stride = bufwidth * 2u;
@@ -765,11 +770,11 @@ void __cdecl UnVQ2_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 			for (uint32_t r = 0; r < 2; ++r) {
 				uint32_t lo = ((uint32_t)*(uint16_t *)(cb + 2) << 16) | *(uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(rowp + 0) = lo;
+				Store32<Aligned>((rowp + 0), lo);
 
 				uint32_t hi = ((uint32_t)*(uint16_t *)(cb + 2) << 16) | *(uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(rowp + 4) = hi;
+				Store32<Aligned>((rowp + 4), hi);
 
 				rowp += step;
 			}
@@ -785,11 +790,11 @@ void __cdecl UnVQ2_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 				for (uint32_t r = 0; r < 2; ++r) {
 					uint32_t lo = ((uint32_t)*(uint16_t *)(cb2 + 2) << 16) | *(uint16_t *)(cb2 + 0);
 					cb2 += 4;
-					*(uint32_t *)(p + 0) = lo;
+					Store32<Aligned>((p + 0), lo);
 
 					uint32_t hi = ((uint32_t)*(uint16_t *)(cb2 + 2) << 16) | *(uint16_t *)(cb2 + 0);
 					cb2 += 4;
-					*(uint32_t *)(p + 4) = hi;
+					Store32<Aligned>((p + 4), hi);
 
 					p += step;
 				}
@@ -836,11 +841,11 @@ void __cdecl UnVQ2_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 			for (uint32_t r = 0; r < 2; ++r) {
 				uint32_t lo = ((uint32_t)*(uint16_t *)(cb + 2) << 16) | *(uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(dst + 0) = lo;
+				Store32<Aligned>((dst + 0), lo);
 
 				uint32_t hi = ((uint32_t)*(uint16_t *)(cb + 2) << 16) | *(uint16_t *)(cb + 0);
 				cb += 4;
-				*(uint32_t *)(dst + 4) = hi;
+				Store32<Aligned>((dst + 4), hi);
 
 				dst += bufwidth;
 			}
@@ -906,7 +911,7 @@ void __cdecl UnVQ2_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 						uint8_t * p = dst;
 						uint32_t i;
 						for (i = 0; i < height; i++) {
-							*(uint32_t *)p = lo;
+							Store32<Aligned>(p, lo);
 							p += 8;
 						}
 					}
@@ -918,7 +923,7 @@ void __cdecl UnVQ2_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buff
 						uint8_t * p = dst + 4;
 						uint32_t i;
 						for (i = 0; i < height; i++) {
-							*(uint32_t *)p = hi;
+							Store32<Aligned>(p, hi);
 							p += 8;
 						}
 					}
@@ -2271,5 +2276,52 @@ void __cdecl UnVQ2_C0_4x2_KEY(uint8_t * codebook, uint8_t * pointers, uint8_t * 
 	}
 }
 
+/*
+** The decoders that store whole words. A destination whose address or row stride isn't a
+** multiple of 4 (the radar movie sits at an odd pixel column) is decoded with halfword stores.
+*/
+void __cdecl UnVQ2_C1_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+{
+	if ((((size_t)buffer) | (bufwidth * 2u)) & 3u) {
+		UnVQ2_C1_4x4_T<false>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	} else {
+		UnVQ2_C1_4x4_T<true>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	}
+}
 
+void __cdecl UnVQ1_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+{
+	if ((((size_t)buffer) | (bufwidth * 2u)) & 3u) {
+		UnVQ1_C4_4x4_T<false>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	} else {
+		UnVQ1_C4_4x4_T<true>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	}
+}
+
+void __cdecl UnVQ2_C4_4x4(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+{
+	if ((((size_t)buffer) | (bufwidth * 2u)) & 3u) {
+		UnVQ2_C4_4x4_T<false>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	} else {
+		UnVQ2_C4_4x4_T<true>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	}
+}
+
+void __cdecl UnVQ1_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+{
+	if ((((size_t)buffer) | (bufwidth * 2u)) & 3u) {
+		UnVQ1_C4_4x2_T<false>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	} else {
+		UnVQ1_C4_4x2_T<true>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	}
+}
+
+void __cdecl UnVQ2_C4_4x2(uint8_t * codebook, uint8_t * pointers, uint8_t * buffer, size_t blocksperrow, size_t numrows, size_t bufwidth)
+{
+	if ((((size_t)buffer) | (bufwidth * 2u)) & 3u) {
+		UnVQ2_C4_4x2_T<false>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	} else {
+		UnVQ2_C4_4x2_T<true>(codebook, pointers, buffer, blocksperrow, numrows, bufwidth);
+	}
+}
 
