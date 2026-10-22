@@ -52,6 +52,9 @@ class MSAnim
 		/// Returns if the anim's done drawing itself
 		virtual bool Has_Finished(void) const { return(false); }
 
+		/// Stops the anim where it stands and leaves its still picture, for a wait that gave up
+		virtual void Abort(void) { }
+
 		/// Restores the anim's image to the surface
 		virtual void Restore(Rect const & rect) { }
 
@@ -204,9 +207,15 @@ class MSVQAnim : public MSAnim
 		virtual void Redraw(Surface * surface, Rect const * rect=NULL) override;
 		virtual Rect Get_Rect(void) const override;
 		virtual bool Has_Finished(void) const override;
+		virtual void Abort(void) override;
 		virtual void Restore(Rect const & rect) override;
 
 	protected:
+		/*
+		 * Set by Abort: the next Advance treats the movie as having run out.
+		 */
+		bool Aborted;
+
 		/*
 		 * Pointer to the movie being played. If the movie could not be created, then this is
 		 * NULL and the anim falls back on its still picture alone.

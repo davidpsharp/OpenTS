@@ -28,7 +28,9 @@
 #include "color.hh"
 
 #include <algorithm>
+#include <chrono>
 #include <climits>
+#include <cstdio>
 
 
 /// <summary>
@@ -71,6 +73,9 @@ MSEngine::~MSEngine(void)
 // Set when the whole display is to be rebuilt from the alternate surface on the next
 // advance, which is how the screen comes back after a dialog has covered it.
 static bool _RebuildFromAlternate = false;
+
+// Wall time Wait_For_Anim allows an animation before it stops waiting.
+static int const WAIT_LIMIT_MS = 30000;
 
 
 /// <summary>
@@ -135,6 +140,11 @@ void MSEngine::Wait_For_Anim(MSAnim * anim, unsigned delay)
 {
 	CDTimerClass<SystemTimerClass> timer = delay;
 
+	// A wait that never ends leaves the screen frozen, so it gives up after WAIT_LIMIT_MS of
+	// wall time and falls back on the animation's still picture.
+	std::chrono::steady_clock::time_point const start = std::chrono::steady_clock::now();
+	bool aborted = false;
+
 	while (true) {
 		int id = Anims.ID(anim);
 		if (id == -1) {
@@ -146,6 +156,16 @@ void MSEngine::Wait_For_Anim(MSAnim * anim, unsigned delay)
 		}
 
 		if (delay <= 0) {
+			break;
+		}
+
+		std::chrono::steady_clock::duration const waited = std::chrono::steady_clock::now() - start;
+		if (!aborted && waited >= std::chrono::milliseconds(WAIT_LIMIT_MS)) {
+			fprintf(stderr, "MapSelect: animation wait timed out\n");
+			Anims[id]->Abort();
+			aborted = true;
+		} else if (aborted && waited >= std::chrono::milliseconds(WAIT_LIMIT_MS + 2000)) {
+			// The animation could not be stopped, so the wait ends without it.
 			break;
 		}
 

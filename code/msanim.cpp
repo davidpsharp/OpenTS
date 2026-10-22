@@ -597,6 +597,7 @@ MSVQAnim::MSVQAnim(char const * name, Surface * surface, MS_ANIM_LIST * vector, 
 	Persistent(persistent),
 	Done(false)
 {
+	Aborted = false;
 	if (name != NULL && surface != NULL) {
 		Movie = Movie_Create(name, surface, Rect(0, 0, 0, 0), Rect(0, 0, 0, 0), 255, false);
 		if (Movie != NULL) {
@@ -647,7 +648,13 @@ bool MSVQAnim::Advance(Surface * surface, Rect & rect)
 	if (Movie != NULL) {
 		bool is_done = false;
 		if (!Done) {
-			bool advanced = Movie_Advance_Frame(Movie, is_done);
+			bool advanced = false;
+			if (Aborted) {
+				Movie_Pause(Movie);
+				is_done = true;
+			} else {
+				advanced = Movie_Advance_Frame(Movie, is_done);
+			}
 			if (advanced == true) {
 				Redraw(surface);
 				rect = Movie->StretchRect;
@@ -751,6 +758,17 @@ Rect MSVQAnim::Get_Rect(void) const
 bool MSVQAnim::Has_Finished(void) const
 {
 	return(Done);
+}
+
+
+/// <summary>
+/// Stops the movie where it stands.
+/// The next Advance pauses the movie, and the still image takes its place as it does when
+/// the movie runs out.
+/// </summary>
+void MSVQAnim::Abort(void)
+{
+	Aborted = true;
 }
 
 
