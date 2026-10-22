@@ -14,14 +14,19 @@
 
 #include "audio/audiodevice.h"
 #include "audio/audiomixer.h"
+#include "vqalog.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 
 namespace {
 
 // How much a producer may write in one pass, so one stream cannot hold the
 // feeder for long.
+// How long Detach waits for the feeder to close a slot.
+int const DETACH_WAIT_MS = 1000;
+
 unsigned const MAX_FRAMES_PER_PASS = 48000;
 
 // Frames of one read from a miniaudio decoder.
@@ -414,9 +419,18 @@ void AudioFeederClass::Detach(unsigned slot)
 		return;
 	}
 	s.State.store(SLOT_CLOSING, std::memory_order_release);
+	VQLog::Mark("Detach: waiting for the feeder");
+	// A feeder that is not being scheduled must not hold the game thread for ever: after
+	// DETACH_WAIT_MS the slot is left to the feeder to close when it does run.
+	auto const start = std::chrono::steady_clock::now();
 	while (s.State.load(std::memory_order_acquire) != SLOT_IDLE) {
+		if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(DETACH_WAIT_MS)) {
+			fprintf(stderr, "Audio: the feeder did not close slot %u in %d ms\n", slot, DETACH_WAIT_MS);
+			break;
+		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
+	VQLog::Mark("Detach: done");
 }
 
 

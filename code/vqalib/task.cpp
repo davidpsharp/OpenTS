@@ -755,6 +755,8 @@ int32_t VQA_Play(VQAHandle *vqa, int32_t mode, int flags)
 
 	audio = &vqabuf->Audio;
 
+	Audio_Movie_Service();
+
 	/* One time player priming. */
 	if (!(vqabuf->Flags & VQADATF_PRIMED)) {
 		rc = VQA_ResetLastFrameNum(vqa);

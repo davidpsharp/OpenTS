@@ -19,6 +19,7 @@
 #include "goptions.h"
 #include "video.h"
 #include "msanim.h"
+#include "vqalog.h"
 #include "msgloop.h"
 #include "mssfx.h"
 #include "rect.h"
@@ -28,7 +29,11 @@
 #include "color.hh"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <memory>
+#include <thread>
+#include "audio/audiomovie.h"
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -74,6 +79,49 @@ MSEngine::~MSEngine(void)
 // Set when the whole display is to be rebuilt from the alternate surface on the next
 // advance, which is how the screen comes back after a dialog has covered it.
 static bool _RebuildFromAlternate = false;
+
+// OPENTS_VQALOG=1: reports from a thread of its own, once a second, the last place the game
+// thread said it was going (VQLog::Mark), how often it has said so, and whether the audio
+// threads are still running. A game thread that has stopped shows as an unchanging count.
+class VQWatchdogClass
+{
+	public:
+		VQWatchdogClass(void) : Stop(false)
+		{
+			Thread = std::thread([this]() {
+				unsigned last = VQLog::Seq().load();
+				unsigned stale = 0;
+				unsigned seconds = 0;
+				while (!Stop.load()) {
+					for (int i = 0; i < 10 && !Stop.load(); i++) {
+						std::this_thread::sleep_for(std::chrono::milliseconds(100));
+					}
+					if (Stop.load()) {
+						break;
+					}
+					seconds++;
+					unsigned const seq = VQLog::Seq().load();
+					stale = (seq == last) ? stale + 1 : 0;
+					last = seq;
+					char audio[256];
+					Audio_Movie_Describe(audio, sizeof(audio));
+					fprintf(stderr, "VQALOG-WD: t=%us where=\"%s\" marks=%u unchanged=%us feeder=%u sdlfeed=%u %s\n", seconds,
+						VQLog::Where().load(), seq, stale, AudioEngine.Feeder_Ref().Passes(), VQLog::Feeds().load(), audio);
+				}
+			});
+		}
+
+		~VQWatchdogClass(void)
+		{
+			Stop.store(true);
+			Thread.join();
+		}
+
+	private:
+		std::atomic<bool> Stop;
+		std::thread Thread;
+};
+
 
 // Wall time Wait_For_Anim allows an animation before it stops waiting.
 static int const WAIT_LIMIT_MS = 30000;
@@ -148,6 +196,10 @@ void MSEngine::Wait_For_Anim(MSAnim * anim, unsigned delay)
 	static bool const log = getenv("OPENTS_VQALOG") != NULL && getenv("OPENTS_VQALOG")[0] == '1';
 	unsigned passes = 0;
 	unsigned seconds = 0;
+	std::unique_ptr<VQWatchdogClass> watchdog;
+	if (log) {
+		watchdog.reset(new VQWatchdogClass());
+	}
 
 	while (true) {
 		int id = Anims.ID(anim);
@@ -404,11 +456,17 @@ void MSEngine::Wait_Delay(int delay)
 
 	do {
 		do {
+			VQLog::Mark("Wait_Delay: Call_Back");
 			Call_Back();
+			VQLog::Mark("Wait_Delay: Process_Idle");
 			Process_Idle();
+			VQLog::Mark("Wait_Delay: Advance");
 			Advance(HiddenSurface);
+			VQLog::Mark("Wait_Delay: Blit_All");
 			Blit_All(HiddenSurface);
+			VQLog::Mark("Wait_Delay: Windows_Message_Handler");
 			Windows_Message_Handler();
+			VQLog::Mark("Wait_Delay: Sleep");
 
 			if (!GameInFocus) {
 				timer.Stop();

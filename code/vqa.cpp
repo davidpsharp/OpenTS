@@ -24,6 +24,7 @@
 #include "sdl/sdlwindow.h"
 #include "session.h"
 #include "unvqtblc.h"
+#include "vqalog.h"
 #include "vector.h"
 #include "vqoption.h"
 #include "win.h"
@@ -637,7 +638,9 @@ bool VQAClass::Advance_Frame(bool & finished)
 	}
 
 	if (GameInFocus == true && !IsPaused) {
+		VQLog::Mark("VQA_Play");
 		int res = VQA_Play(Handle, VQAMODE_WALK, 0);
+		VQLog::Mark("VQA_Play returned");
 		LastPlayResult = res;
 		PlayCalls++;
 		if (res >= VQAERR_OK) {

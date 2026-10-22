@@ -17,6 +17,7 @@
 #include "dbgprint.h"
 #include "stackprime.h"
 #include "riscosdesktop.h"
+#include "vqalog.h"
 
 #include <SDL3/SDL.h>
 
@@ -63,6 +64,7 @@ class SDLAudioDeviceClass : public AudioDeviceClass
 
 void SDLCALL SDLAudioDeviceClass::Feed(void * self, SDL_AudioStream * stream, int additional, int)
 {
+	VQLog::Feeds().fetch_add(1, std::memory_order_relaxed);
 	static thread_local bool primed = false;
 	if (!primed) {
 		Stack_Prime(STACK_PRIME_THREAD);

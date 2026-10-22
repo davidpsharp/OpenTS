@@ -38,3 +38,7 @@ intptr_t __cdecl Stream_Audio_Handler(VQAHandle * vqa, int32_t action, void * bu
 
 // Writes the movie sound's state (started, paused, frames pushed and consumed) for OPENTS_VQALOG.
 void Audio_Movie_Describe(char * buffer, size_t size);
+
+// Game thread: tells the player which sound blocks were heard and loads the next, when the
+// game thread feeds the movie (see Open_Audio_Handler). A no-op otherwise.
+void Audio_Movie_Service(void);

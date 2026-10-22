@@ -11,6 +11,9 @@
 
 #include "audio/audioengine.h"
 #include "audio/audiomovieclock.h"
+#include "vqalog.h"
+
+#include <chrono>
 #include "audio/audiostream.h"
 #include "dbgprint.h"
 #include "gametime.h"
@@ -36,6 +39,18 @@ class MovieSinkClass : public AudioStreamProducerClass
 		bool Fill(AudioStreamClass & stream) override
 		{
 			(void)stream;
+			// The player's callbacks change its state, which the game thread changes too and
+			// guards with a lock that is not one. Where the game thread feeds the movie
+			// itself (Audio_Movie_Service), the feeder leaves it alone.
+			if (MainFeeds) {
+				return(true);
+			}
+			return(Service());
+		}
+
+		// Tells the player which blocks have been heard and asks it for the next ones.
+		bool Service(void)
+		{
 			if (!Started || Paused) {
 				return(true);
 			}
@@ -92,6 +107,7 @@ class MovieSinkClass : public AudioStreamProducerClass
 		}
 
 		bool Used = false;
+		bool MainFeeds = false;
 		bool Started = false;
 		bool Paused = false;
 		int Slot = -1;
@@ -173,6 +189,18 @@ int32_t Open_Audio_Handler(VQAHandleP * vqap, AhandleInitParams * params, int32_
 	_sink.Handle.Clear();
 	_sink.Started = false;
 	_sink.Paused = false;
+	// The game thread feeds the movie on RISC OS, where the feeder thread is only switched in by
+	// a ticker; OPENTS_MOVIEAUDIO=main or =feeder chooses on any machine.
+#ifdef __riscos__
+	bool mainfeeds = true;
+#else
+	bool mainfeeds = false;
+#endif
+	char const * choice = getenv("OPENTS_MOVIEAUDIO");
+	if (choice != nullptr) {
+		mainfeeds = (choice[0] == 'm');
+	}
+	_sink.MainFeeds = mainfeeds;
 	_sink.Used = true;
 
 	vqap->AudioHandleIndex = 0;
@@ -209,6 +237,7 @@ int32_t Start_Audio_Handler(VQAHandleP * vqap)
 		return(VQAERR_NONE);
 	}
 
+	VQLog::Mark("Start_Audio_Handler");
 	_sink.Stream->Reset();
 	_sink.Clear_Pending();
 	unsigned latency = (unsigned)((uint64_t)AudioEngine.Device_Latency_Frames() * _sink.Rate / AUDIO_MIX_RATE);
@@ -234,6 +263,7 @@ int32_t Start_Audio_Handler(VQAHandleP * vqap)
 int32_t Pause_Audio_Handler(VQAHandleP * vqap)
 {
 	(void)vqap;
+	VQLog::Mark("Pause_Audio_Handler");
 	if (_sink.Used && _sink.Started && !_sink.Paused) {
 		AudioEngine.Events().Pause(_sink.Handle);
 		_sink.Clock.Pause();
@@ -247,8 +277,10 @@ int32_t Stop_Audio_Handler(VQAHandleP * vqap)
 {
 	(void)vqap;
 	if (_sink.Used && _sink.Started) {
+		VQLog::Mark("Stop_Audio_Handler");
 		AudioEngine.Feeder_Ref().Detach((unsigned)_sink.Slot);
 		AudioEngine.Events().Stop(_sink.Handle);
+		VQLog::Mark("Stop_Audio_Handler: waiting for the voice");
 		if (!AudioEngine.Wait_Finished(_sink.Handle, STOP_WAIT_MS)) {
 			DebugString("Ahandle: movie voice did not stop in time\n");
 		}
@@ -279,14 +311,28 @@ int32_t Close_Audio_Handler(VQAHandleP * vqap)
 } // namespace
 
 
+void Audio_Movie_Service(void)
+{
+	if (_sink.Used && _sink.MainFeeds) {
+		// As often as the feeder thread would have run.
+		static std::chrono::steady_clock::time_point last;
+		std::chrono::steady_clock::time_point const now = std::chrono::steady_clock::now();
+		if (now - last >= std::chrono::milliseconds(AUDIO_FEEDER_PERIOD_MS)) {
+			last = now;
+			_sink.Service();
+		}
+	}
+}
+
+
 void Audio_Movie_Describe(char * buffer, size_t size)
 {
 	if (!_sink.Used || _sink.Stream == nullptr) {
 		snprintf(buffer, size, "audio=none");
 		return;
 	}
-	snprintf(buffer, size, "audio=open started=%d paused=%d pushed=%u consumed=%u pending=%u rate=%u latency=%u",
-		(int)_sink.Started, (int)_sink.Paused, (unsigned)_sink.Stream->Frames_Pushed(), (unsigned)_sink.Stream->Frames_Consumed(),
+	snprintf(buffer, size, "audio=open mainfeeds=%d started=%d paused=%d pushed=%u consumed=%u pending=%u rate=%u latency=%u",
+		(int)_sink.MainFeeds, (int)_sink.Started, (int)_sink.Paused, (unsigned)_sink.Stream->Frames_Pushed(), (unsigned)_sink.Stream->Frames_Consumed(),
 		_sink.Pending_Count(), _sink.Rate, (unsigned)AudioEngine.Device_Latency_Frames());
 }
 
