@@ -573,6 +573,13 @@ void Test_Movie_Clock(void)
 	Check(clock.Ticks(8820 + latency, 1, 130) == 34, "a repeated block is taken off, so the sound seems to stand still");
 	Check(clock.Ticks(13230 + latency, 1, 140) == 24, "later frames minus the repeated block");
 
+	AudioMovieClockClass stalled;
+	stalled.Reset(rate, block, latency, 60);
+	Check(stalled.Ticks(0, 0, 100) == 0, "a silent device: nothing heard");
+	Check(stalled.Ticks(0, 0, 159) == 0, "a silent device holds the clock for a second");
+	Check(stalled.Ticks(0, 0, 200) == 40, "after that the wall clock carries the movie");
+	Check(stalled.Ticks(latency + 4410, 0, 205) == 12, "sound that starts at last takes over");
+
 	clock.Pause();
 	Check(clock.Is_Paused() && clock.Ticks(20000, 1, 200) == 24, "paused clock holds");
 	clock.Resume(260);

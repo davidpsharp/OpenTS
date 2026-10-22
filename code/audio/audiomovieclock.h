@@ -35,6 +35,8 @@ class AudioMovieClockClass
 			TickCount = 0;
 			PauseAdjust = 0;
 			Paused = false;
+			Waiting = false;
+			FirstWall = 0;
 		}
 
 		// consumed: frames the mixer has taken; repeated: blocks the player fed
@@ -53,6 +55,16 @@ class AudioMovieClockClass
 					TickCount += t - LastWall;
 					LastWall = t;
 				}
+			} else if (heard == 0 && LastPosition == 0) {
+				// Nothing heard yet. A device that goes on taking nothing (no sound driver
+				// running behind it) would hold the movie at its first frame for good, so after
+				// a second of waiting the wall clock carries the movie.
+				if (!Waiting) {
+					Waiting = true;
+					FirstWall = t;
+				}
+				LastWall = t;
+				TickCount = (t - FirstWall >= TickRate) ? t - FirstWall - TickRate : 0;
 			} else {
 				LastPosition = heard;
 				LastWall = t;
@@ -85,4 +97,6 @@ class AudioMovieClockClass
 		unsigned long TickCount;
 		unsigned long PauseAdjust;
 		bool Paused;
+		bool Waiting;
+		unsigned long FirstWall;
 };
