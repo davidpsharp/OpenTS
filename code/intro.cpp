@@ -36,6 +36,7 @@
 
 #include "ccfile.h"
 #include "movie.h"
+#include "mixfile.h"
 
 #include <cstdio>
 
@@ -64,5 +65,12 @@ void Choose_Side(int side)
 		return;
 	}
 
+	// With both discs' movies installed, INTRO.VQA is the first disc's whichever side plays.
+	// The side's own disc (MOVIES01 for GDI, MOVIES02 for Nod) is searched first when it has one.
+	char disc[16];
+	std::snprintf(disc, sizeof(disc), "MOVIES%02d.MIX", side + 1);
+	if (side >= 0 && side < 2) {
+		MixFileClass::Prefer(disc, "INTRO.VQA");
+	}
 	Play_Movie("INTRO.VQA");
 }

@@ -315,6 +315,37 @@ void const * MixFileClass::Retrieve(char const * filename)
 
 
 /***********************************************************************************************
+ * MixFileClass::Prefer -- Makes a mixfile the first one searched, if it holds a given file.   *
+ *                                                                                             *
+ *    Two mixfiles can hold different files of the same name (each disc's INTRO.VQA), and the  *
+ *    first mixfile searched wins. This puts the named mixfile ahead of the others, but only   *
+ *    when it is loaded and really holds the file, so a file that is missing there is still    *
+ *    found elsewhere as before.                                                               *
+ *                                                                                             *
+ * INPUT:   mixname  -- The name of the mixfile that should be searched first.                 *
+ *          filename -- The file that it is wanted for.                                        *
+ *                                                                                             *
+ * OUTPUT:  bool; Does that mixfile hold the file (and is it now searched first)?              *
+ *=============================================================================================*/
+bool MixFileClass::Prefer(char const * mixname, char const * filename)
+{
+	MixFileClass * ptr = Finder(mixname);
+	if (ptr == NULL) return(false);
+
+	char filename_upper[_MAX_PATH];
+	strcpy(filename_upper, filename);
+	strupr(filename_upper);
+	SubBlock key;
+	key.CRC = CRCEngine()(filename_upper, strlen(filename_upper));
+	if (Binary_Search<SubBlock>(ptr->HeaderBuffer, ptr->Count, key) == NULL) return(false);
+
+	ptr->Unlink();
+	List.Add_Head(ptr);
+	return(true);
+}
+
+
+/***********************************************************************************************
  * MixFileClass::Finder -- Finds the mixfile object that matches the name specified.           *
  *                                                                                             *
  *    This routine will scan through all registered mixfiles and return with a pointer to      *
