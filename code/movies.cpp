@@ -10,6 +10,7 @@
 #include "always.h"
 
 #include "movies.h"
+#include "audio/audiomovie.h"
 
 #include "_map.h"
 #include "_surface.h"
@@ -291,6 +292,23 @@ bool Movie_Advance_Frame(VQHandle * handle, bool &finished)
 	bool res = handle->VQA->Advance_Frame(finished);
 	CurrentVQ = NULL;
 	return(res);
+}
+
+
+/// <summary>
+/// Describes where a movie is and what its sound is doing, for OPENTS_VQALOG.
+/// </summary>
+void Movie_Describe(VQHandle * handle, char * buffer, size_t size)
+{
+	char audio[160];
+	Audio_Movie_Describe(audio, sizeof(audio));
+	if (handle != NULL && handle->VQA != NULL) {
+		char play[256];
+		handle->VQA->Describe(play, sizeof(play));
+		snprintf(buffer, size, "%s %s", play, audio);
+	} else {
+		snprintf(buffer, size, "no movie %s", audio);
+	}
 }
 
 

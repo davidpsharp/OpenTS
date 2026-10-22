@@ -31,6 +31,7 @@
 #include <chrono>
 #include <climits>
 #include <cstdio>
+#include <cstdlib>
 
 
 /// <summary>
@@ -144,6 +145,9 @@ void MSEngine::Wait_For_Anim(MSAnim * anim, unsigned delay)
 	// wall time and falls back on the animation's still picture.
 	std::chrono::steady_clock::time_point const start = std::chrono::steady_clock::now();
 	bool aborted = false;
+	static bool const log = getenv("OPENTS_VQALOG") != NULL && getenv("OPENTS_VQALOG")[0] == '1';
+	unsigned passes = 0;
+	unsigned seconds = 0;
 
 	while (true) {
 		int id = Anims.ID(anim);
@@ -170,6 +174,21 @@ void MSEngine::Wait_For_Anim(MSAnim * anim, unsigned delay)
 		}
 
 		Wait_Delay(1);
+		passes++;
+
+		if (log) {
+			unsigned const elapsed = (unsigned)std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count();
+			if (elapsed > seconds) {
+				seconds = elapsed;
+				char state[1024];
+				int const found = Anims.ID(anim);
+				state[0] = 0;
+				if (found != -1) {
+					Anims[found]->Describe(state, sizeof(state));
+				}
+				fprintf(stderr, "VQALOG: t=%us waitdelay=%u %s\n", elapsed, passes, state);
+			}
+		}
 	}
 }
 

@@ -35,3 +35,6 @@ uint32_t __cdecl Timer_Callback_Audio_Handler(VQAHandle * vqa);
 int32_t __cdecl Lock_Audio_Handler(void);
 int32_t __cdecl Unlock_Audio_Handler(void);
 intptr_t __cdecl Stream_Audio_Handler(VQAHandle * vqa, int32_t action, void * buffer, int32_t nbytes);
+
+// Writes the movie sound's state (started, paused, frames pushed and consumed) for OPENTS_VQALOG.
+void Audio_Movie_Describe(char * buffer, size_t size);

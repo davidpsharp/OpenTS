@@ -26,6 +26,7 @@ void Movie_Destroy(VQHandle * handle);
 void Movie_Play(VQHandle *movie, bool hide_mouse, ThemeType theme, bool user_break_not_allowed);
 bool Movie_Advance_Frame(VQHandle * handle, bool &finished);
 bool Movie_Is_Playing(void);
+void Movie_Describe(VQHandle * handle, char * buffer, size_t size);
 void Movie_Pause(VQHandle * handle);
 void Movie_Resume(VQHandle * handle);
 void Movie_Queue_Ingame(VQHandle * handle);

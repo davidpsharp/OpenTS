@@ -83,6 +83,8 @@ class MovieSinkClass : public AudioStreamProducerClass
 			return(VQAERR_NONE);
 		}
 
+		unsigned Pending_Count(void) const { return(PendingCount); }
+
 		void Clear_Pending(void)
 		{
 			PendingHead = 0;
@@ -275,6 +277,18 @@ int32_t Close_Audio_Handler(VQAHandleP * vqap)
 }
 
 } // namespace
+
+
+void Audio_Movie_Describe(char * buffer, size_t size)
+{
+	if (!_sink.Used || _sink.Stream == nullptr) {
+		snprintf(buffer, size, "audio=none");
+		return;
+	}
+	snprintf(buffer, size, "audio=open started=%d paused=%d pushed=%u consumed=%u pending=%u rate=%u latency=%u",
+		(int)_sink.Started, (int)_sink.Paused, (unsigned)_sink.Stream->Frames_Pushed(), (unsigned)_sink.Stream->Frames_Consumed(),
+		_sink.Pending_Count(), _sink.Rate, (unsigned)AudioEngine.Device_Latency_Frames());
+}
 
 
 uint32_t __cdecl Simple_Timer_Callback_Audio_Handler(VQAHandle *)

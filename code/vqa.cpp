@@ -638,6 +638,8 @@ bool VQAClass::Advance_Frame(bool & finished)
 
 	if (GameInFocus == true && !IsPaused) {
 		int res = VQA_Play(Handle, VQAMODE_WALK, 0);
+		LastPlayResult = res;
+		PlayCalls++;
 		if (res >= VQAERR_OK) {
 			if (SurfaceDrawCallback) {
 				SurfaceDrawCallback();
@@ -661,6 +663,15 @@ bool VQAClass::Advance_Frame(bool & finished)
 		DebugString("VQAClass::Advance_Frame() - Pause\n");
 	}
 	return(false);
+}
+
+
+void VQAClass::Describe(char * buffer, size_t size) const
+{
+	VQAHandleP * vqap = (VQAHandleP *)Handle;
+	snprintf(buffer, size, "play=%u rc=%d frame=%d/%d time=%u paused=%d focus=%d vqflags=%x audflags=%x waitsonaudio=%d",
+		PlayCalls, LastPlayResult, CurrentFrame, (int)TotalFrames, (unsigned)VQA_GetTime(vqap), (int)IsPaused, (int)GameInFocus,
+		(unsigned)vqap->Flags, (unsigned)vqap->Audio.Flags, (int)vqap->Loader.WaitsOnAudio);
 }
 
 

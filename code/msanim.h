@@ -55,6 +55,9 @@ class MSAnim
 		/// Stops the anim where it stands and leaves its still picture, for a wait that gave up
 		virtual void Abort(void) { }
 
+		/// Writes the anim's state for OPENTS_VQALOG
+		virtual void Describe(char * buffer, size_t size) const { if (size > 0) buffer[0] = 0; }
+
 		/// Restores the anim's image to the surface
 		virtual void Restore(Rect const & rect) { }
 
@@ -208,6 +211,7 @@ class MSVQAnim : public MSAnim
 		virtual Rect Get_Rect(void) const override;
 		virtual bool Has_Finished(void) const override;
 		virtual void Abort(void) override;
+		virtual void Describe(char * buffer, size_t size) const override;
 		virtual void Restore(Rect const & rect) override;
 
 	protected:

@@ -119,6 +119,8 @@ class VQAClass
 		int Event3Frame;
 		bool IsPaused;
 		bool IsAdvanceReady;
+		int LastPlayResult = 0;
+		unsigned PlayCalls = 0;
 
 	public:
 		VQAClass(char const * filename, int flags, VQA_SURF_LOCK_CALLBACK surface_lock, VQA_SURF_UNLOCK_CALLBACK surface_unlock, VQA_SURF_DRAW_CALLBACK surface_draw, VQA_IDLE_CALLBACK idle = NULL, int frame_rate = -1, int draw_rate = -1);
@@ -154,6 +156,9 @@ class VQAClass
 		bool Handle_Unlock_Event(void);
 
 		bool Is_Paused(void) const { return(IsPaused); }
+
+		/// Writes the play state (last VQA_Play result, frame, clocks) for OPENTS_VQALOG.
+		void Describe(char * buffer, size_t size) const;
 		void Set_Pause_On_Focus_Loss(bool pause) { PauseOnFocusLoss = pause; }
 
 		int32_t CCFileHandler(int32_t action, void * buffer, int32_t nbytes);

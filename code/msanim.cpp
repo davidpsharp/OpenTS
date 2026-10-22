@@ -772,6 +772,14 @@ void MSVQAnim::Abort(void)
 }
 
 
+void MSVQAnim::Describe(char * buffer, size_t size) const
+{
+	char movie[512];
+	Movie_Describe(Movie, movie, sizeof(movie));
+	snprintf(buffer, size, "done=%d %s", (int)Done, movie);
+}
+
+
 /// <summary>
 /// Creates a text printing anim from a string table entry.
 /// The text is typed out a character at a time within the area specified. Use this
