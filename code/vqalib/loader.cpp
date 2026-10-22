@@ -393,7 +393,9 @@ int32_t VQA_LoadFrame_Internal(VQAHandleP *vqap, int32_t flags)
 	 * EOF AUDIO TAIL. We've already read past the StopFrame; service one last
 	 * audio copy and report end-of-file.
 	 *-----------------------------------------------------------------------*/
-	if (loader->CurFrameNum > vqap->StopFrame) {
+	// Frames are numbered from 0, so there is nothing at NumFrames: the stream beyond the last
+	// frame is not frame data.
+	if (loader->CurFrameNum > vqap->StopFrame || (vqap->NumFrames > 0 && loader->CurFrameNum >= vqap->NumFrames)) {
 		if (!(flags & VQALOADF_NOSND) && (config->OptionFlags & VQAOPTF_AUDIO) && !(config->OptionFlags & VQAOPTF_ALTAUDIO)) {
 			if (CopyAudio(vqap) == VQAERR_SLEEPING) {
 				vqap->Flags |= VQADATF_LSLEEP;

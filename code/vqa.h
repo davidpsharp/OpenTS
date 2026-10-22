@@ -97,6 +97,10 @@ class VQAClass
 	private:
 		CCFileClass FileHandle;
 		bool IsFileOpen;
+		// The movie's own data inside the MIX file, for MixFileHandler: its length, and where in it the
+		// stream stands. Reading or seeking past either end fails instead of reaching a neighbour.
+		int MixLength = 0;
+		int MixPosition = 0;
 		char Filename[MAX_PATH];
 		VQAConfig Config;
 		VQAHandle * Handle;
@@ -162,6 +166,7 @@ class VQAClass
 		void Set_Pause_On_Focus_Loss(bool pause) { PauseOnFocusLoss = pause; }
 
 		int32_t CCFileHandler(int32_t action, void * buffer, int32_t nbytes);
+		bool Mix_Seek(int offset, int whence);
 		int32_t MixFileHandler(int32_t action, void * buffer, int32_t nbytes);
 		int32_t CacheHandler(int32_t action, void * buffer, int32_t nbytes);
 

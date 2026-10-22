@@ -932,6 +932,27 @@ intptr_t __cdecl VQACCFileHandler(VQAHandle * vqa, int32_t action, void * buffer
 }
 
 
+// Moves the stream inside the movie's data in the MIX file, from the position that whence
+// names. Returns false, leaving the stream where it was, for a place outside the data.
+bool VQAClass::Mix_Seek(int offset, int whence)
+{
+	int target = offset;
+	if (whence == SEEK_CUR) {
+		target = MixPosition + offset;
+	} else if (whence == SEEK_END) {
+		target = MixLength + offset;
+	}
+	if (target < 0 || target > MixLength) {
+		return(false);
+	}
+	if (target != MixPosition && FileHandle.Seek(target - MixPosition, SEEK_CUR) == 0) {
+		return(false);
+	}
+	MixPosition = target;
+	return(true);
+}
+
+
 int32_t VQAClass::MixFileHandler(int32_t action, void * buffer, int32_t nbytes)
 {
 	int32_t error = 1;
@@ -947,10 +968,13 @@ int32_t VQAClass::MixFileHandler(int32_t action, void * buffer, int32_t nbytes)
 		*/
 		case VQACMD_OPEN: {
 			int offset = 0;
+			int length = 0;
 			MixFileClass * mixfile = NULL;
-			if (MixFileClass::Offset(Filename, NULL, &mixfile, &offset)) {
+			if (MixFileClass::Offset(Filename, NULL, &mixfile, &offset, &length)) {
 				IsFileOpen = FileHandle.Open(mixfile->Filename, FileClass::READ) != 0;
 				error = FileHandle.Seek(offset, SEEK_CUR) == 0;
+				MixLength = length;
+				MixPosition = 0;
 			} else {
 				error = 1;
 			}
@@ -965,9 +989,12 @@ int32_t VQAClass::MixFileHandler(int32_t action, void * buffer, int32_t nbytes)
 		**	VQAERR_READ.
 		*/
 		case VQACMD_READ:
-			if (FileHandle.Read(buffer, nbytes) != nbytes) {
+			// Nothing past the end of the movie's own data: the bytes after it belong to the
+			// next file in the MIX.
+			if (nbytes < 0 || nbytes > MixLength - MixPosition || FileHandle.Read(buffer, nbytes) != nbytes) {
 				error = 1;
 			} else {
+				MixPosition += nbytes;
 				error = 0;
 			}
 			break;
@@ -992,33 +1019,38 @@ int32_t VQAClass::MixFileHandler(int32_t action, void * buffer, int32_t nbytes)
 		**	VQAERR_SEEK.
 		*/
 		case VQACMD_SEEK:
-			error = (FileHandle.Seek(nbytes, (int)(intptr_t)buffer) == 0);
+			error = Mix_Seek(nbytes, (int)(intptr_t)buffer) ? 0 : 1;
 			break;
 
 		case VQACMD_SEEKPEEK:
 			if (nbytes > 0) {
-				error = FileHandle.Seek(nbytes - sizeof(tmp), (int)(intptr_t)buffer) == 0;
+				error = Mix_Seek(nbytes - (int)sizeof(tmp), (int)(intptr_t)buffer) ? 0 : 1;
 				if (error == 0) {
 					error = FileHandle.Read(&tmp, sizeof(tmp)) != sizeof(tmp);
+					if (error == 0) {
+						MixPosition += (int)sizeof(tmp);
+					}
 				}
 			} else {
-				error = FileHandle.Seek(nbytes, (int)(intptr_t)buffer) == 0;
-				if (error == 0) {
+				error = Mix_Seek(nbytes, (int)(intptr_t)buffer) ? 0 : 1;
+				if (error == 0 && MixPosition < MixLength) {
 					error = FileHandle.Read(&tmp, sizeof(tmp)) != sizeof(tmp);
 					if (error == 0) {
 						error = FileHandle.Seek(-((int)sizeof(tmp)), SEEK_CUR) == 0;
 					}
+				} else {
+					error = 1;
 				}
 			}
 			break;
 
 		case VQACMD_SIZE:
-			*((int *)buffer) = FileHandle.Size();
+			*((int *)buffer) = MixLength;
 			error = 0;
 			break;
 
 		case VQACMD_TELL:
-			*((int *)buffer) = FileHandle.Seek(0, SEEK_CUR);
+			*((int *)buffer) = MixPosition;
 			error = 0;
 			break;
 
