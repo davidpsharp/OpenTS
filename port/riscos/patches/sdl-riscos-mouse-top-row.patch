@@ -1,0 +1,16 @@
+diff --git a/src/video/riscos/SDL_riscosevents.c b/src/video/riscos/SDL_riscosevents.c
+index 569620977..a6107e8a8 100644
+--- a/src/video/riscos/SDL_riscosevents.c
++++ b/src/video/riscos/SDL_riscosevents.c
+@@ -122,7 +122,10 @@ void RISCOS_PollMouse(SDL_VideoDevice *_this)
+ 
+     _kernel_swi(OS_Mouse, &regs, &regs);
+     x = (regs.r[0] >> 1);
+-    y = rect.h - (regs.r[1] >> 1);
++    /* OpenTS: OS_Mouse's y runs from 0 at the bottom to 2*h-1 at the top, so the top row is
++       h-1 pixels up. Taking it from rect.h without the 1 made the top row 1, so the pointer never
++       reached row 0, and the bottom row h, one past the end. */
++    y = rect.h - 1 - (regs.r[1] >> 1);
+     buttons = regs.r[2];
+ 
+     if (mouse->x != x || mouse->y != y) {
