@@ -64,6 +64,7 @@
 *                                rectangle.
 *
 ****************************************************************************/
+#include "vqalog.h"
 #include	"vqaplayp.h"
 #include	"unvq.h"
 #include	"cmp.h"
@@ -378,7 +379,11 @@ STATIC int32_t Select_Frame(VQAHandleP *vqap)
 	 * - If this is a palette-set frame, set the palette before skipping it
 	 * - Loop until we get the frame we need, or there's no frames available
 	 */
+	unsigned skips = 0;
 	while (curframe->FrameNum != desiredframe) {
+		if (VQLog::Spin("Draw_Frame skip", skips, 1000)) {
+			return(VQAERR_NOT_TIME);
+		}
 
 		/* No frame available; return */
 		//if ((curframe->Flags & VQAFRMF_LOADED) == 0) {
@@ -559,7 +564,11 @@ int32_t VQA_ComputeDesiredFrame(VQAHandleP *vqap, VQAConfig *config, VQADrawer *
 			loop_end = vqap->LoopEndFrame2;
 		}
 
+		unsigned wraps = 0;
 		while (true) {
+			if (VQLog::Spin("ComputeDesiredFrame loop", wraps, 1000)) {
+				break;
+			}
 			if ((config->DrawFlags & VQACFGF_NOSKIP) || result <= loop_end) {
 				if (!(config->DrawFlags & VQACFGF_NOSKIP) || frame_num != vqap->LoopStartFrame0 || crossed_loop) {
 					break;

@@ -53,6 +53,7 @@
 *
 ****************************************************************************/
 
+#include "vqalog.h"
 #include <stdio.h>
 #include <string.h>
 #include "vqaplay.h"
@@ -883,8 +884,13 @@ int32_t VQA_Play(VQAHandle *vqa, int32_t mode, int flags)
 			}
 
 			/* Load, Draw, Load, Draw, Load, Draw ... */
+			unsigned spins = 0;
 			while ((vqabuf->Flags & (VQADATF_DDONE|VQADATF_LDONE))
 					!= (VQADATF_DDONE|VQADATF_LDONE)) {
+				if (VQLog::Spin("VQA_Play load/draw", spins, 1000)) {
+					rc = VQAERR_NOT_TIME;
+					break;
+				}
 
 				/* Load a frame */
 				if (!(vqabuf->Flags & VQADATF_LDONE)) {

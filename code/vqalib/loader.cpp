@@ -62,6 +62,7 @@
 *
 ****************************************************************************/
 
+#include "vqalog.h"
 #include "cmp.h"
 #include <stdio.h>
 #include <memory.h>
@@ -434,7 +435,11 @@ int32_t VQA_LoadFrame_Internal(VQAHandleP *vqap, int32_t flags)
 		curframe->Codebook = loader->FullCB;
 	}
 
+	unsigned chunks = 0;
 	while (frame_loaded == 0) {
+		if (VQLog::Spin("Loader chunk", chunks, 100000)) {
+			return(VQAERR_EOF);
+		}
 
 		/* Read new chunk, only if we're not sleeping */
 		if (!(vqap->Flags & VQADATF_LSLEEP)) {
@@ -1631,7 +1636,11 @@ int32_t Load_VQF(VQAHandleP *vqap, uint32_t frame_iffsize, char flags)
 	/*-------------------------------------------------------------------------
 	 * FRAME LOADING LOOP.
 	 *-----------------------------------------------------------------------*/
+	unsigned subchunks = 0;
 	while (bytes_loaded < framesize) {
+		if (VQLog::Spin("Loader subchunk", subchunks, 100000)) {
+			return(VQAERR_EOF);
+		}
 
 		/* Read chunk ID */
 		if (vqap->Config.StreamHandler((VQAHandle *)vqap, VQACMD_READ, chunk, sizeof(*chunk))) {
