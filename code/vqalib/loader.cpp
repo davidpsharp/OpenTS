@@ -435,9 +435,32 @@ int32_t VQA_LoadFrame_Internal(VQAHandleP *vqap, int32_t flags)
 		curframe->Codebook = loader->FullCB;
 	}
 
+	/* A frame has a handful of chunks. A frame that goes on past MAX_FRAME_CHUNKS, or that
+	 * reads the same chunk header MAX_SAME_CHUNKS times running, is not being read from the
+	 * right place: the stream is given up on (the movie ends where it stands) and what was
+	 * being read is reported, always, as a bug report.
+	 */
+	unsigned const MAX_FRAME_CHUNKS = 256;
+	unsigned const MAX_SAME_CHUNKS = 16;
 	unsigned chunks = 0;
+	unsigned same = 0;
+	uint32_t last_id = 0xFFFFFFFF;
+	uint32_t last_size = 0xFFFFFFFF;
+	struct { uint32_t id; uint32_t size; } history[8];
 	while (frame_loaded == 0) {
-		if (VQLog::Spin("Loader chunk", chunks, 100000)) {
+		chunks++;
+		if (chunks > MAX_FRAME_CHUNKS || same > MAX_SAME_CHUNKS) {
+			int32_t position = -1;
+			config->StreamHandler((VQAHandle *)vqap, VQACMD_TELL, &position, sizeof(position));
+			fprintf(stderr, "VQA: frame %d: %u chunks (%u alike), stream position %d, giving up; last chunks:",
+				(int)loader->CurFrameNum, chunks, same, (int)position);
+			for (unsigned h = 0; h < 8 && h + 1 < chunks; h++) {
+				unsigned const at = (chunks - 1 - h) % 8;
+				char const * tag = (char const *)&history[at].id;
+				fprintf(stderr, " %c%c%c%c/%u", tag[0] >= 32 ? tag[0] : '?', tag[1] >= 32 ? tag[1] : '?',
+					tag[2] >= 32 ? tag[2] : '?', tag[3] >= 32 ? tag[3] : '?', (unsigned)REVERSE_LONG(history[at].size));
+			}
+			fprintf(stderr, "\n");
 			return(VQAERR_EOF);
 		}
 
@@ -451,6 +474,15 @@ int32_t VQA_LoadFrame_Internal(VQAHandleP *vqap, int32_t flags)
 
 			iffsize = REVERSE_LONG(chunk->size);
 			loader->FrameSize += iffsize;
+			history[chunks % 8].id = chunk->id;
+			history[chunks % 8].size = chunk->size;
+			if (chunk->id == last_id && chunk->size == last_size) {
+				same++;
+			} else {
+				same = 0;
+			}
+			last_id = chunk->id;
+			last_size = chunk->size;
 		}
 
 		/* Assume the chunk data will be skipped rather than read; the

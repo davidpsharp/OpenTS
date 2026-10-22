@@ -365,6 +365,7 @@ typedef struct _VQAHandle {
 #define VQACMD_SEEK     7 /* Seek */
 #define VQACMD_SEEKPEEK 8
 #define VQACMD_SIZE     9
+#define VQACMD_TELL     10 /* Position in the stream, written to the int that Buffer points to */
 
 #define VQAMEM_0		0
 #define VQAMEM_1		1

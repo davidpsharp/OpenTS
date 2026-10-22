@@ -885,6 +885,11 @@ int32_t VQAClass::CCFileHandler(int32_t action, void * buffer, int32_t nbytes)
 			error = 0;
 			break;
 
+		case VQACMD_TELL:
+			*((int *)buffer) = FileHandle.Seek(0, SEEK_CUR);
+			error = 0;
+			break;
+
 		case VQACMD_CLOSE:
 			FileHandle.Close();
 			IsFileOpen = false;
@@ -1009,6 +1014,11 @@ int32_t VQAClass::MixFileHandler(int32_t action, void * buffer, int32_t nbytes)
 
 		case VQACMD_SIZE:
 			*((int *)buffer) = FileHandle.Size();
+			error = 0;
+			break;
+
+		case VQACMD_TELL:
+			*((int *)buffer) = FileHandle.Seek(0, SEEK_CUR);
 			error = 0;
 			break;
 
