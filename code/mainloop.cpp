@@ -18,6 +18,7 @@
 #include "_bench.h"
 #include "_command.h"
 #include "_logic.h"
+#include "init.h"
 #include "_map.h"
 #include "_palette.h"
 #include "_rules.h"
@@ -500,6 +501,16 @@ void Keyboard_Process(KeyNumType & input)
 	if (cmd != NULL) {
 
 		cmd->Execute();
+
+	} else if (plain == KN_INSERT || plain == VK_SNAPSHOT || key == (KN_F9 | KN_SHIFT_BIT)) {
+
+		/*
+		**	Fixed screen capture keys: Insert, Print Screen and Shift+F9. The shipped keyboard file
+		**	binds the command to Ctrl+C, which leaves the command's own default key unclaimed, and
+		**	not every keyboard has Insert or Print Screen. Any command bound to one of these keys
+		**	in the keyboard file takes precedence.
+		*/
+		Execute_Command("ScreenCapture");
 
 	} else {
 

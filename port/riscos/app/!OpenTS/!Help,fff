@@ -153,8 +153,9 @@ The desktop doesn't respond while the game is on the screen. Shift+F12,
 or Desktop in the game's Options menu, goes back to it, with the game
 paused where it was (sound too); click the icon again to carry on. In a
 network game the game carries on for the other players meanwhile. The
-icon's menu has Info, Help (this file) and Quit. Insert saves a
-screenshot, as a PNG file in !OpenTS.Screenshots. Shift+F8 shows or hides
+icon's menu has Info, Help (this file) and Quit. Insert, Print or
+Shift+F9 saves a screenshot, as a PNG file in !OpenTS.Screenshots (the
+menus are not in it). Shift+F8 shows or hides
 a small green frame rate counter in the bottom right corner of the screen
 (the number of frames a second actually shown); it is off each time the
 game starts.
