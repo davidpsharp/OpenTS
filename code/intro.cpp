@@ -69,8 +69,14 @@ void Choose_Side(int side)
 	// The side's own disc (MOVIES01 for GDI, MOVIES02 for Nod) is searched first when it has one.
 	char disc[16];
 	std::snprintf(disc, sizeof(disc), "MOVIES%02d.MIX", side + 1);
-	if (side >= 0 && side < 2) {
-		MixFileClass::Prefer(disc, "INTRO.VQA");
+	if (side >= 0 && side < 2 && !MixFileClass::Prefer(disc, "INTRO.VQA")) {
+		// The side's own disc isn't installed. If the other side's disc is, its INTRO.VQA is the
+		// wrong side's intro, and no intro is better than that one.
+		char other[16];
+		std::snprintf(other, sizeof(other), "MOVIES%02d.MIX", 2 - side);
+		if (MixFileClass::Prefer(other, "INTRO.VQA")) {
+			return;
+		}
 	}
 	Play_Movie("INTRO.VQA");
 }
