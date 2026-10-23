@@ -2899,7 +2899,7 @@ void Draw_Version_Text(Surface * surface)
 	}
 
 	version[0] = '\0';
-	strcpy(version, Version_Name());
+	strcpy(version, Version_Name_Menu());
 
 	Cheat_Version_Suffix(version);
 

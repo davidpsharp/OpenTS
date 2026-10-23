@@ -509,3 +509,22 @@ char const * Version_Name(void)
 	return(OPENTS_VERSION_DISPLAY);
 #endif
 }
+
+
+/// <summary>
+/// The short product version for the menu footer. The RISC OS port shows its own version and not
+/// the engine's number and commit, which Version_Name keeps for the version dialog, the crash
+/// report and the sync error log.
+/// </summary>
+char const * Version_Name_Menu(void)
+{
+#if __has_include("opents_port.h")
+	static char name[160];
+	if (name[0] == '\0') {
+		snprintf(name, sizeof(name), "%s RISC OS port", OPENTS_PORT_VERSION);
+	}
+	return(name);
+#else
+	return(Version_Name());
+#endif
+}

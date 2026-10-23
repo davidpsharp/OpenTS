@@ -154,5 +154,6 @@ class VersionClass {
 };
 
 char const * Version_Name(void);
+char const * Version_Name_Menu(void);
 
 /************************** end of version.h *******************************/
