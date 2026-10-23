@@ -15,13 +15,16 @@ OpenTS:          https://github.com/OpenTS-Developers/OpenTS
 OpenTS manual:   https://opents-developers.github.io/OpenTS/
 RISC OS port:    https://github.com/davidpsharp/OpenTS (branch riscos)
 
-This RISC OS version is a port of OpenTS, ported by David Sharp. It needs
+This RISC OS version is a port of OpenTS, ported by David Sharp. It is based
+on OpenTS 0.2.0 (the development source of 7 October 2026, commit 70286ee6),
+after the project's last release, 0.1.0. It needs
 RISC OS 5 on a Raspberry Pi (it doesn't run on a Risc PC). It draws
 everything in software, since RISC OS has no 3D drivers, and runs full
 screen. Its source code, updates and bug reports for the port are at the
 RISC OS port address above.
 
-The main menu shows the version and the build it was made from.
+The main menu footer and the Info window on the icon bar show the version of
+this RISC OS port.
 
 
 Requirements

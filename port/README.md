@@ -3,6 +3,9 @@
 This directory builds OpenTS for macOS and for RISC OS 5 on ARMv7 machines such as the
 Raspberry Pi 4. It is a separate CMake project; the Windows build is unchanged.
 
+The port is based on OpenTS 0.2.0, the development source of 7 October 2026 (upstream commit
+70286ee6), which comes after the project's last release, 0.1.0.
+
 ```bash
 cmake -S port -B build/mac -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
