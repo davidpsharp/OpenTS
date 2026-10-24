@@ -4,7 +4,14 @@
 > Ported by David Sharp, with the help of an AI assistant (Claude).
 >
 > - **Playing it**: the app's [`!OpenTS.!Help`](https://github.com/davidpsharp/OpenTS/blob/riscos/port/riscos/app/!OpenTS/!Help,fff) file explains installing and running it, the same file you get with the app on RISC OS. You need your own copy of the game data; the `Prepare` step installs it from the freeware Tiberian Sun CD images.
-> - **Downloads**: none published yet.
+> - **Downloads**: the zip is on the [Releases page](../../releases).
+> - **Reporting a bug in the RISC OS port**: open an issue on this fork's [Issues page](../../issues), one problem per issue, not on the upstream OpenTS project. Please give:
+>   - the version, from Info on the icon bar menu (a version ending in `-dev` is not a release);
+>   - the Raspberry Pi model and the RISC OS version;
+>   - what you did, what happened and what you expected, and the exact text of any error box;
+>   - the file `stderr` and the newest log in the `Debug` directory, both inside `!OpenTS` (Shift-double-click the application to open it). Copy `stderr` before running the game again, as each run replaces it;
+>   - for a problem while installing the game data, the file `InstallLog` in the application's `gamedata` directory;
+>   - for a network game, which machines took part and the files above from each.
 > - **Building it yourself** (for developers): the [RISC OS port README](https://github.com/davidpsharp/OpenTS/blob/riscos/port/README.md) explains how it is compiled and tested, and what is different from upstream.
 > - Everything below is the upstream OpenTS README.
 
