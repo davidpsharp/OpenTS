@@ -1,6 +1,7 @@
 > ## RISC OS port
 >
 > This fork runs **Tiberian Sun** and its **Firestorm** expansion (`!OpenTS`) on **RISC OS 5**, on a Raspberry Pi 2, 3 or 4 with RISC OS 5.30. The work is on the `riscos` branch.
+> It is not made for the Raspberry Pi 1 or Zero. Their ARMv6 processor could be targeted, but it is too slow to be worth it: about 15 frames a second in a busy game, against about 60 on a Pi 2.
 > Ported by David Sharp, with the help of an AI assistant (Claude).
 >
 > - **Playing it**: the app's [`!OpenTS.!Help`](https://github.com/davidpsharp/OpenTS/blob/riscos/port/riscos/app/!OpenTS/!Help,fff) file explains installing and running it, the same file you get with the app on RISC OS. You need your own copy of the game data; the `Prepare` step installs it from the freeware Tiberian Sun CD images.

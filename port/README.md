@@ -22,8 +22,17 @@ The compiler must be clang: the engine uses MSVC's `__declspec(property)`, which
 | `riscos/` | The RISC OS cross toolchain (a Docker image), the application directory, the stack and crash-report code, and headers GCC 10's library lacks. |
 
 Everything is drawn in software, because RISC OS has no 3D drivers: the 565 game frame is
-scaled into a 32-bit screen, the UI overlay is rasterised over it, and SDL copies the screen
-to the window.
+scaled into a 32-bit screen, the UI is rasterised into a layer laid over it, and SDL copies the
+screen to the window.
+The UI layer is drawn again only when RmlUi's drawing commands differ from the last frame's, so
+a menu that is standing there costs nothing. Where only a few commands differ (a button the
+pointer moves onto), only the box they cover is drawn again, and only that part of the screen is
+made again and copied to the display. When neither the game frame nor the layer has changed, a
+frame only moves the pointer, and only the rectangles the pointer left and now covers are copied
+(`riscos/patches/sdl-riscos-update-rects.patch` lets SDL's RISC OS driver copy part of the window).
+While a scenario loads, the game handles no events for seconds on a slower Pi, so the hardware
+pointer, which moves by itself, shows a three-colour copy of the game's pointer until the
+scenario is loaded (`riscos/pointer.cpp`).
 On a Raspberry Pi with the VideoOverlay module (in `!System`, loaded by `!Run`), frames the UI
 draws nothing over go through the display's hardware overlay instead: the frame is converted
 once at its own size into the overlay's buffer and the display stretches it, which takes the
@@ -95,8 +104,22 @@ so it sits in the corner of the game's area, and a frame stretched to the screen
 The game never sees Shift+F8 (plain F8 is still the game's chat to everyone in a network game).
 `port/tools/fpsfont_test.cpp` draws the digits into a picture on the host, to look at.
 
-On a Raspberry Pi 4 a 640x480 skirmish runs at 60 game frames a second, the game's fastest
-speed.
+How fast it runs, at the size the game picks for each Pi on a 1680x1050 desktop, through the
+overlay, at the game's fastest normal speed (60 frames a second), on 25 October 2026:
+
+| | Pi 2 | Pi 3 | Pi 4 |
+| --- | --- | --- | --- |
+| Size picked | 640x480 | 640x480 | 1440x900 |
+| Menus and pop-ups | 50-62 | 50-62 | 60-62 |
+| Start of a skirmish | 48-57 | 58-59 | 58-59 |
+| A busy late game | 49-57 | 56-59 | 58-59 |
+| The same, as fast as it goes | about 60 | about 117 | about 90 |
+
+The Raspberry Pi 1 and Zero (ARMv6) aren't targeted: the port's speed test, built with an older
+GCCSDK that targets them, runs 2.4 times slower on a Pi 1 than on a Pi 2, which would be about 15
+frames a second in a busy game. Building for them would mean rebuilding the GCC 10 toolchain's
+runtime libraries (UnixLib, libgcc, libstdc++), which are ARMv7 only, for ARMv6 with VFPv2; the
+port's own code needs nothing more than the compiler flags.
 
 ## Versioning
 

@@ -30,8 +30,12 @@ this RISC OS port.
 Requirements
 ------------
 
-  * A Raspberry Pi with RISC OS 5, tested on RISC OS 5.30. A Pi 4 is
-    best; it also runs on a Pi 2 and a Pi 3, more slowly.
+  * A Raspberry Pi 2, 3 or 4 with RISC OS 5, tested on RISC OS 5.30.
+    At the screen size the game picks for each, menus and play run at or
+    near 60 frames a second on all three. A Pi 4 has the most to spare
+    and picks a sharper picture; a Pi 2 slows a little in a busy game.
+    It doesn't run on a Pi 1 or Pi Zero: they would manage only about
+    15 frames a second, so the game isn't built for them.
   * These modules, which come with RISC OS 5 or from PackMan, in !System:
       SharedUnixLibrary 1.16 or later
       ARMEABISupport 1.03 or later
