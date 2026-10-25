@@ -10,8 +10,13 @@
 /*
 ** The frame presenter for the POSIX build, in place of code/bgfxbackend.cpp. It draws in
 ** software, because RISC OS has no 3D drivers: the 565 game frame is converted and scaled
-** into the soft screen, the UI overlay draws over that, and the result is copied to the
-** window's SDL surface.
+** into the soft screen, the UI's layer (softscreen.h) is laid over that, and the result is
+** copied to the window's SDL surface.
+**
+** Where the screen is the window's own surface, it keeps what was put there. A frame whose
+** game frame and UI layer are the same as the last one's then only moves the pointer: the
+** pixels it covered are put back, it is drawn in its new place, and only those two
+** rectangles go to the display.
 */
 
 #include "bgfxbackend.h"
@@ -65,9 +70,33 @@ static void const * _Pixels565 = nullptr;
 static int _Pitch565 = 0;
 static bool _FrameStale = false;
 
+// Drawing the screen is left to Backend_End_Frame, once the UI has drawn its layer.
+static bool _PendingScreen = false;
+// What the screen was last made from, while it still holds just that (with the pointer over it).
+static bool _ComposeValid = false;
+static unsigned _ComposedFrame = 0;
+static unsigned _ComposedLayer = 0;
+static int _ComposedRect[4] = {};
+static BackendScaleMode _ComposedMode = BACKEND_SCALE_NEAREST;
+static std::uint32_t const * _ComposedPixels = nullptr;
+// The pixels under the pointer, as the screen was made.
+static std::vector<std::uint32_t> _Under;
+static SDL_Rect _UnderRect = {};
+static bool _UnderValid = false;
+// The parts of the screen changed this frame, unless all of it was.
+static bool _DirtyAll = false;
+static SDL_Rect _DirtyRects[2];
+static int _DirtyCount = 0;
+
 void Soft_Note_UI_Drawn(void)
 {
 	_UIDrew = true;
+}
+
+
+void Soft_Screen_Lost(void)
+{
+	_ComposeValid = false;
 }
 
 static void Convert_Frame_To(std::uint32_t * dest, int destpitch, void const * pixels, int pitch);
@@ -126,6 +155,7 @@ static bool Make_Screen(int width, int height)
 		_Screen = nullptr;
 	}
 	_Soft = SoftScreen();
+	_ComposeValid = false;
 
 	_Screen = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_XRGB8888);
 	if (_Screen == nullptr) {
@@ -266,7 +296,7 @@ static inline std::uint32_t Blend(std::uint32_t first, std::uint32_t second, uns
 // Bilinear scaling, as the Pi's display scales frames through its overlay, so that a frame drawn
 // the usual way (with a menu over it) looks like the ones around it. Each frame row is
 // stretched across once and kept while the destination rows between it and the next use it.
-static void Scale_Frame_Smooth(int destx, int desty, int destwidth, int destheight, int x0, int y0, int x1, int y1)
+static bool Scale_Frame_Smooth(int destx, int desty, int destwidth, int destheight, int x0, int y0, int x1, int y1, int const * region)
 {
 	// The last scaling, kept for as long as the frame and the rectangle stay the same (a menu
 	// over a paused game redraws the screen with the same frame under it every time).
@@ -277,10 +307,15 @@ static void Scale_Frame_Smooth(int destx, int desty, int destwidth, int destheig
 	size_t const keptwidth = (size_t)(x1 - x0);
 	bool const same = !kept.empty() && keptversion == _FrameVersion && std::equal(rect, rect + 6, keptrect);
 	if (same) {
-		for (int y = y0; y < y1; y++) {
-			std::memcpy(_Soft.Pixels + (size_t)y * (size_t)_Soft.Pitch + x0, &kept[(size_t)(y - y0) * keptwidth], keptwidth * 4);
+		int const rx0 = region ? std::max(x0, region[0]) : x0, ry0 = region ? std::max(y0, region[1]) : y0;
+		int const rx1 = region ? std::min(x1, region[2]) : x1, ry1 = region ? std::min(y1, region[3]) : y1;
+		for (int y = ry0; y < ry1 && rx1 > rx0; y++) {
+			std::memcpy(_Soft.Pixels + (size_t)y * (size_t)_Soft.Pitch + rx0, &kept[(size_t)(y - y0) * keptwidth + (size_t)(rx0 - x0)], (size_t)(rx1 - rx0) * 4);
 		}
-		return;
+		return(true);
+	}
+	if (region != nullptr) {
+		return(false);
 	}
 
 	static std::vector<SmoothTap> columns, rows;
@@ -333,15 +368,18 @@ static void Scale_Frame_Smooth(int destx, int desty, int destwidth, int destheig
 	}
 	keptversion = _FrameVersion;
 	std::copy(rect, rect + 6, keptrect);
+	return(true);
 }
 
 
 // Scaling into the destination rectangle, which is clipped to the screen: nearest-neighbour, or
-// smooth where frames otherwise go through the Pi's overlay.
-static void Scale_Frame(int destx, int desty, int destwidth, int destheight)
+// smooth where frames otherwise go through the Pi's overlay. With a region (x0, y0, x1, y1), only
+// the part of the screen inside it, which fails (returning false) where that would mean scaling
+// the whole frame again.
+static bool Scale_Frame(int destx, int desty, int destwidth, int destheight, int const * region = nullptr)
 {
 	if (destwidth <= 0 || destheight <= 0 || _FrameWidth <= 0 || _FrameHeight <= 0) {
-		return;
+		return(true);
 	}
 
 	int const x0 = destx < 0 ? 0 : destx;
@@ -350,8 +388,22 @@ static void Scale_Frame(int destx, int desty, int destwidth, int destheight)
 	int const y1 = (desty + destheight > _Soft.Height) ? _Soft.Height : desty + destheight;
 
 	if ((destwidth != _FrameWidth || destheight != _FrameHeight) && RISCOS_Overlay_Available()) {
-		Scale_Frame_Smooth(destx, desty, destwidth, destheight, x0, y0, x1, y1);
-		return;
+		return(Scale_Frame_Smooth(destx, desty, destwidth, destheight, x0, y0, x1, y1, region));
+	}
+	if (region != nullptr) {
+		int const rx0 = std::max(x0, region[0]), ry0 = std::max(y0, region[1]);
+		int const rx1 = std::min(x1, region[2]), ry1 = std::min(y1, region[3]);
+		std::uint64_t const stepx = ((std::uint64_t)_FrameWidth << 16) / (std::uint64_t)destwidth;
+		std::uint64_t const stepy = ((std::uint64_t)_FrameHeight << 16) / (std::uint64_t)destheight;
+		for (int y = ry0; y < ry1 && rx1 > rx0; y++) {
+			int const sy = (int)(((std::uint64_t)(y - desty) * stepy) >> 16);
+			std::uint32_t const * source = &_Frame[(size_t)sy * (size_t)_FrameWidth];
+			std::uint32_t * dest = _Soft.Pixels + (size_t)y * (size_t)_Soft.Pitch;
+			for (int x = rx0; x < rx1; x++) {
+				dest[x] = source[(size_t)((((std::uint64_t)(x - destx)) * stepx) >> 16)];
+			}
+		}
+		return(true);
 	}
 
 	std::uint32_t const stepx = (std::uint32_t)(((std::uint64_t)_FrameWidth << 16) / (std::uint64_t)destwidth);
@@ -380,6 +432,7 @@ static void Scale_Frame(int destx, int desty, int destwidth, int destheight)
 			sx += stepx;
 		}
 	}
+	return(true);
 }
 
 
@@ -407,6 +460,136 @@ static void Clear_Borders(int destx, int desty, int destwidth, int destheight)
 }
 
 
+// a * b / 255, rounded, for bytes.
+static inline unsigned Mul255(unsigned a, unsigned b)
+{
+	unsigned const t = a * b + 128;
+	return((t + (t >> 8)) >> 8);
+}
+
+// The UI's layer over the screen, or over the part of it inside region (x0, y0, x1, y1).
+static void Compose_Layer(int const * region = nullptr)
+{
+	SoftLayer const & layer = Soft_UI_Layer();
+	if (layer.Pixels == nullptr || layer.Width != _Soft.Width || layer.Height != _Soft.Height) {
+		return;
+	}
+	int const rs = _Soft.RedShift, bs = _Soft.BlueShift;
+	int const x0 = region ? std::max(layer.X0, region[0]) : layer.X0, y0 = region ? std::max(layer.Y0, region[1]) : layer.Y0;
+	int const x1 = region ? std::min(layer.X1, region[2]) : layer.X1, y1 = region ? std::min(layer.Y1, region[3]) : layer.Y1;
+	for (int y = y0; y < y1; y++) {
+		std::uint32_t const * source = layer.Pixels + (size_t)y * (size_t)layer.Pitch;
+		std::uint32_t * dest = _Soft.Pixels + (size_t)y * (size_t)_Soft.Pitch;
+		for (int x = x0; x < x1; x++) {
+			std::uint32_t const pixel = source[x];
+			unsigned const alpha = pixel >> 24;
+			if (alpha == 0) {
+				continue;
+			}
+			if (alpha == 255) {
+				dest[x] = pixel;
+				continue;
+			}
+			std::uint32_t const under = dest[x];
+			unsigned const keep = 255 - alpha;
+			unsigned const r = std::min(((pixel >> rs) & 0xFF) + Mul255((under >> rs) & 0xFF, keep), 255u);
+			unsigned const g = std::min(((pixel >> 8) & 0xFF) + Mul255((under >> 8) & 0xFF, keep), 255u);
+			unsigned const b = std::min(((pixel >> bs) & 0xFF) + Mul255((under >> bs) & 0xFF, keep), 255u);
+			dest[x] = 0xFF000000u | (r << rs) | (g << 8) | (b << bs);
+		}
+	}
+}
+
+
+static void Add_Dirty(SDL_Rect const & rect)
+{
+	if (_DirtyAll || rect.w <= 0 || rect.h <= 0) {
+		return;
+	}
+	if (_DirtyCount == 2) {
+		SDL_Rect merged;
+		SDL_GetRectUnion(&_DirtyRects[0], &_DirtyRects[1], &merged);
+		_DirtyRects[0] = merged;
+		_DirtyCount = 1;
+	}
+	_DirtyRects[_DirtyCount++] = rect;
+}
+
+
+// Makes the screen from the game frame and the UI's layer, or, if neither has changed since it
+// was last made, only takes the pointer off it.
+static void Draw_Screen(void)
+{
+	SoftLayer const & layer = Soft_UI_Layer();
+	int const rect[4] = {_DestX, _DestY, _DestWidth, _DestHeight};
+	bool const kept = _ComposeValid && _Direct && !FPS_Counter_On && _ComposedPixels == _Soft.Pixels
+		&& _ComposedFrame == _FrameVersion && _ComposedMode == _ScaleMode && std::equal(rect, rect + 4, _ComposedRect);
+	bool const same = kept && _ComposedLayer == layer.Version;
+	bool const part = kept && !same && layer.PartValid && layer.PartFrom == _ComposedLayer;
+	if (same || part) {
+		if (_UnderValid) {
+			for (int y = 0; y < _UnderRect.h; y++) {
+				std::memcpy(_Soft.Pixels + (size_t)(_UnderRect.y + y) * (size_t)_Soft.Pitch + _UnderRect.x,
+					&_Under[(size_t)y * (size_t)_UnderRect.w], (size_t)_UnderRect.w * 4);
+			}
+			Add_Dirty(_UnderRect);
+			_UnderValid = false;
+		}
+		if (same) {
+			return;
+		}
+		// Only part of the layer changed: that part of the screen is made again.
+		int const region[4] = {std::max(layer.PartX0, 0), std::max(layer.PartY0, 0),
+			std::min(layer.PartX1, _Soft.Width), std::min(layer.PartY1, _Soft.Height)};
+		if (region[2] > region[0] && region[3] > region[1]) {
+			Clear_Rect(region[0], region[1], region[2] - region[0], region[3] - region[1]);
+			if (Scale_Frame(_DestX, _DestY, _DestWidth, _DestHeight, region)) {
+				Compose_Layer(region);
+				Add_Dirty({region[0], region[1], region[2] - region[0], region[3] - region[1]});
+				_ComposedLayer = layer.Version;
+				return;
+			}
+		} else {
+			_ComposedLayer = layer.Version;
+			return;
+		}
+	}
+
+	Clear_Borders(_DestX, _DestY, _DestWidth, _DestHeight);
+	Scale_Frame(_DestX, _DestY, _DestWidth, _DestHeight);
+	Compose_Layer();
+	_DirtyAll = true;
+	_UnderValid = false;
+	_ComposeValid = true;
+	_ComposedPixels = _Soft.Pixels;
+	_ComposedFrame = _FrameVersion;
+	_ComposedLayer = layer.Version;
+	_ComposedMode = _ScaleMode;
+	std::copy(rect, rect + 4, _ComposedRect);
+}
+
+
+// The pointer over the screen made by Draw_Screen, keeping what it covers.
+static void Draw_Pointer_Kept(void)
+{
+	int x, y, width, height;
+	if (RISCOS_Pointer_Bounds(x, y, width, height)) {
+		SDL_Rect const pointer = {x, y, width, height};
+		SDL_Rect const screen = {0, 0, _Soft.Width, _Soft.Height};
+		if (SDL_GetRectIntersection(&pointer, &screen, &_UnderRect)) {
+			_Under.resize((size_t)_UnderRect.w * (size_t)_UnderRect.h);
+			for (int row = 0; row < _UnderRect.h; row++) {
+				std::memcpy(&_Under[(size_t)row * (size_t)_UnderRect.w],
+					_Soft.Pixels + (size_t)(_UnderRect.y + row) * (size_t)_Soft.Pitch + _UnderRect.x, (size_t)_UnderRect.w * 4);
+			}
+			_UnderValid = true;
+			Add_Dirty(_UnderRect);
+		}
+	}
+	RISCOS_Pointer_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift);
+}
+
+
 bool Backend_Present(void const * pixels, int pitch, int destx, int desty, int destwidth, int destheight, BackendScaleMode mode)
 {
 	if (_Screen == nullptr) {
@@ -414,6 +597,7 @@ bool Backend_Present(void const * pixels, int pitch, int destx, int desty, int d
 	}
 	// Nothing goes on the screen while the desktop has it (waiting on the icon bar, or quitting).
 	if (RISCOS_Desktop_Has_Screen()) {
+		_ComposeValid = false;
 		static bool told = false;
 		if (!told) {
 			told = true;
@@ -471,10 +655,12 @@ bool Backend_Present(void const * pixels, int pitch, int destx, int desty, int d
 		Convert_Frame(_Pixels565, _Pitch565);
 		_FrameStale = false;
 	}
-	if (!_Skipped) {
-		Clear_Borders(destx, desty, destwidth, destheight);
-		Scale_Frame(destx, desty, destwidth, destheight);
+	_PendingScreen = !_Skipped;
+	if (_Skipped) {
+		_ComposeValid = false;
 	}
+	_DirtyAll = !_Direct;
+	_DirtyCount = 0;
 	_OverlayStart = SDL_GetTicksNS();
 	_TimeFrame += _OverlayStart - start;
 	return(true);
@@ -490,14 +676,26 @@ bool Backend_Frame_Is_Point_Sampled(void)
 void Backend_End_Frame(void)
 {
 	if (_Window == nullptr || _Screen == nullptr || RISCOS_Desktop_Has_Screen()) {
+		_ComposeValid = false;
 		return;
 	}
+	Soft_UI_Finish_Frame();
 	if (_OverlayStart != 0) {
 		_TimeOverlay += SDL_GetTicksNS() - _OverlayStart;
 		_OverlayStart = 0;
 	}
+	Uint64 const screenstart = SDL_GetTicksNS();
+	if (_PendingScreen) {
+		_PendingScreen = false;
+		Draw_Screen();
+	}
 	Uint64 const pointerstart = SDL_GetTicksNS();
-	RISCOS_Pointer_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift);
+	_TimeFrame += pointerstart - screenstart;
+	if (_ComposeValid) {
+		Draw_Pointer_Kept();
+	} else {
+		RISCOS_Pointer_Draw(_Soft.Pixels, _Soft.Pitch, _Soft.Width, _Soft.Height, _Soft.RedShift, _Soft.BlueShift);
+	}
 	_TimePointer += SDL_GetTicksNS() - pointerstart;
 	// The frame rate counter (Shift+F8), over the picture the display will show.
 	if (FPS_Counter_On && !_Skipped) {
@@ -547,6 +745,9 @@ void Backend_End_Frame(void)
 	_UIDrew = false;
 	if (_ThroughOverlay) {
 		_ThroughOverlay = false;
+		// The overlay covers what is on the screen, and the screen is sent whole when it is shown.
+		_ComposeValid = false;
+		_DirtyAll = true;
 		Uint64 const showstart = SDL_GetTicksNS();
 		if (uidrew) {
 			// The UI drew over a screen that may not have the frame in it: this frame isn't
@@ -593,7 +794,11 @@ void Backend_End_Frame(void)
 		SDL_BlitSurface(_Screen, nullptr, target, nullptr);
 	}
 	Uint64 const updatestart = SDL_GetTicksNS();
-	SDL_UpdateWindowSurface(_Window);
+	if (_DirtyAll || !_Direct) {
+		SDL_UpdateWindowSurface(_Window);
+	} else if (_DirtyCount > 0) {
+		SDL_UpdateWindowSurfaceRects(_Window, _DirtyRects, _DirtyCount);
+	}
 	Uint64 const done = SDL_GetTicksNS();
 	_TimeBlit += updatestart - blitstart;
 	_TimeUpdate += done - updatestart;

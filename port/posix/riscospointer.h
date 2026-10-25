@@ -17,6 +17,8 @@ void RISCOS_Pointer_Set_Arrow(SDL_Cursor * cursor);
 // Draws SDL's cursor at the mouse over a finished frame, and keeps the desktop's pointer off
 // while it does. The screen is 32-bit, red at bit redshift and blue at bit blueshift.
 void RISCOS_Pointer_Draw(std::uint32_t * pixels, int pitch, int width, int height, int redshift, int blueshift);
+// The screen rectangle RISCOS_Pointer_Draw would draw over now, unclipped; false if it would draw nothing.
+bool RISCOS_Pointer_Bounds(int & x, int & y, int & width, int & height);
 // The same into a frame that is shown stretched over the screen rectangle given (a hardware
 // overlay's): at the mouse's place in the frame, and at the frame's scale.
 void RISCOS_Pointer_Draw_Into_Frame(std::uint32_t * pixels, int pitch, int width, int height, int redshift, int blueshift,
@@ -26,6 +28,10 @@ void RISCOS_Pointer_Draw_Into_Frame(std::uint32_t * pixels, int pitch, int width
 bool RISCOS_Pointer_Changed(void);
 // Tells SDL to leave the desktop's pointer to this code; before SDL shows any cursor.
 void RISCOS_Pointer_Init(void);
+// While the game is busy for seconds without handling events (loading a scenario), the
+// hardware pointer, which moves by itself, shows a three-colour copy of the game's pointer,
+// and the game's own isn't drawn. false puts the game's pointer back.
+void RISCOS_Pointer_Loading(bool loading);
 // The game has the screen again (or for the first time): the desktop's pointer to suit it.
 void RISCOS_Pointer_Game_Takes_Screen(void);
 #else
@@ -33,8 +39,10 @@ inline void RISCOS_Pointer_Add(SDL_Cursor *, unsigned int const *, int, int, int
 inline void RISCOS_Pointer_Remove(SDL_Cursor *) {}
 inline void RISCOS_Pointer_Set_Arrow(SDL_Cursor *) {}
 inline void RISCOS_Pointer_Draw(std::uint32_t *, int, int, int, int, int) {}
+inline bool RISCOS_Pointer_Bounds(int &, int &, int &, int &) { return(false); }
 inline void RISCOS_Pointer_Draw_Into_Frame(std::uint32_t *, int, int, int, int, int, int, int, int, int) {}
 inline bool RISCOS_Pointer_Changed(void) { return(false); }
 inline void RISCOS_Pointer_Init(void) {}
+inline void RISCOS_Pointer_Loading(bool) {}
 inline void RISCOS_Pointer_Game_Takes_Screen(void) {}
 #endif

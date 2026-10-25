@@ -178,6 +178,10 @@
 
 #include "bench.hh"
 
+#ifndef _WIN32
+#include "riscospointer.h"
+#endif
+
 #include <algorithm>
 #include <utility>
 #include <vector>
@@ -673,6 +677,14 @@ bool Read_Scenario(char const * fname)
 
 	Frame = 0;
 
+#ifndef _WIN32
+	// The game handles no events until the scenario is loaded, for seconds on a slow machine.
+	struct LoadingPointer
+	{
+		~LoadingPointer() { RISCOS_Pointer_Loading(false); }
+	} loadingpointer;
+#endif
+
 	if (TournamentTime > 0) {
 		TournamentTimer = TournamentTime * TICKS_PER_MINUTE;
 	}
@@ -723,6 +735,9 @@ bool Read_Scenario(char const * fname)
 
 		Progress.Set_Graphic_Data((players > 1) ? "PROGBARM.SHP" : "PROGBAR.SHP", background, prog_msg, prog_bar_pos);
 		Progress.Display_Progress();
+#ifndef _WIN32
+		RISCOS_Pointer_Loading(true);
+#endif
 
 		if (PacketTransport != NULL && Ipx.Transport_Mode() == IPXManagerClass::TRANSPORT_DIRECT && Session.Players.Count() > 1) {
 			DebugString("Setting addresses for UDP broadcast\n");

@@ -1,0 +1,73 @@
+diff --git a/src/video/riscos/SDL_riscosframebuffer.c b/src/video/riscos/SDL_riscosframebuffer.c
+index d4aa03c42..d90f71e84 100644
+--- a/src/video/riscos/SDL_riscosframebuffer.c
++++ b/src/video/riscos/SDL_riscosframebuffer.c
+@@ -91,11 +91,21 @@ bool RISCOS_CreateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window,
+     return true;
+ }
+ 
+-bool RISCOS_UpdateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects)
++/* OpenTS: sets the graphics window, in OS units, inclusive. */
++static void RISCOS_SetGraphicsWindow(int x0, int y0, int x1, int y1)
++{
++    const int values[4] = { x0, y0, x1, y1 };
++    int i;
++    _kernel_oswrch(24);
++    for (i = 0; i < 4; i++) {
++        _kernel_oswrch(values[i] & 0xFF);
++        _kernel_oswrch((values[i] >> 8) & 0xFF);
++    }
++}
++
++static _kernel_oserror *RISCOS_PlotFramebuffer(SDL_WindowData *internal)
+ {
+-    SDL_WindowData *internal = window->internal;
+     _kernel_swi_regs regs;
+-    _kernel_oserror *error;
+ 
+     regs.r[0] = 512 + 52;
+     regs.r[1] = (int)internal->fb_area;
+@@ -105,7 +115,42 @@ bool RISCOS_UpdateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window,
+     regs.r[5] = 0x50;
+     regs.r[6] = 0;
+     regs.r[7] = 0;
+-    error = _kernel_swi(OS_SpriteOp, &regs, &regs);
++    return _kernel_swi(OS_SpriteOp, &regs, &regs);
++}
++
++bool RISCOS_UpdateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects)
++{
++    SDL_WindowData *internal = window->internal;
++    _kernel_oserror *error = NULL;
++    int w, h, i;
++
++    /* OpenTS: plot only the rectangles asked for, by clipping the plot to each in turn, when
++       they don't cover the whole window; the sprite plotter skips what is clipped away. */
++    SDL_GetWindowSizeInPixels(window, &w, &h);
++    if (rects && numrects > 0 && !(numrects == 1 && rects[0].x <= 0 && rects[0].y <= 0 && rects[0].w >= w && rects[0].h >= h)) {
++        _kernel_swi_regs regs;
++        int xeig, yeig;
++        regs.r[0] = -1;
++        regs.r[1] = 4;
++        _kernel_swi(OS_ReadModeVariable, &regs, &regs);
++        xeig = regs.r[2];
++        regs.r[0] = -1;
++        regs.r[1] = 5;
++        _kernel_swi(OS_ReadModeVariable, &regs, &regs);
++        yeig = regs.r[2];
++        for (i = 0; i < numrects && !error; i++) {
++            int x0 = SDL_max(rects[i].x, 0), y0 = SDL_max(rects[i].y, 0);
++            int x1 = SDL_min(rects[i].x + rects[i].w, w), y1 = SDL_min(rects[i].y + rects[i].h, h);
++            if (x1 <= x0 || y1 <= y0) {
++                continue;
++            }
++            RISCOS_SetGraphicsWindow(x0 << xeig, (h - y1) << yeig, (x1 << xeig) - 1, ((h - y0) << yeig) - 1);
++            error = RISCOS_PlotFramebuffer(internal);
++        }
++        RISCOS_SetGraphicsWindow(0, 0, (w << xeig) - 1, (h << yeig) - 1);
++    } else {
++        error = RISCOS_PlotFramebuffer(internal);
++    }
+     if (error) {
+         return SDL_SetError("OS_SpriteOp 52 failed: %s (%i)", error->errmess, error->errnum);
+     }

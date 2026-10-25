@@ -37,6 +37,7 @@
 #include "tools/tsfiles.h"
 #include "riscosoverlay.h"
 #include "riscospointer.h"
+#include "softscreen.h"
 #include "opents_build.h"
 #include "opents_port.h"
 #include "opents_version.h"
@@ -1270,12 +1271,12 @@ void Give_Screen_To_Desktop(void)
 
 /*
 ** The screen to the game again: Escape is a key (as SDL set it), the pointer as SDL has it, and
-** keys pressed on the desktop forgotten. The game draws every frame in full, so the next one
-** covers the desktop.
+** keys pressed on the desktop forgotten. The next frame is sent whole, so it covers the desktop.
 */
 void Take_Screen_Back(void)
 {
 	_kernel_osbyte(229, 1, 0);
+	Soft_Screen_Lost();
 	RISCOS_Pointer_Game_Takes_Screen(); // the game draws its own
 	_kernel_osbyte(21, 0, 0); // flush the keyboard buffer
 }

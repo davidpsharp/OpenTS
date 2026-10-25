@@ -30,6 +30,141 @@ struct SoftGeometry
 };
 
 
+// a * b / 255, rounded, for bytes.
+static inline unsigned Mul255(unsigned a, unsigned b)
+{
+	unsigned const t = a * b + 128;
+	return((t + (t >> 8)) >> 8);
+}
+
+// A premultiplied colour over a layer pixel, which keeps 255 - a of what is there.
+static inline std::uint32_t Over(std::uint32_t dest, unsigned r, unsigned g, unsigned b, unsigned a, int rs, int bs)
+{
+	unsigned const keep = 255 - a;
+	unsigned const dr = std::min(r + Mul255((dest >> rs) & 0xFF, keep), 255u);
+	unsigned const dg = std::min(g + Mul255((dest >> 8) & 0xFF, keep), 255u);
+	unsigned const db = std::min(b + Mul255((dest >> bs) & 0xFF, keep), 255u);
+	unsigned const da = std::min(a + Mul255(dest >> 24, keep), 255u);
+	return((da << 24) | (dr << rs) | (dg << 8) | (db << bs));
+}
+
+
+// Over for a premultiplied pixel already in the layer's layout, two channels to a multiply: the same
+// result as Over, which it falls back to when a channel would pass 255.
+static inline std::uint32_t Over_Packed(std::uint32_t dest, std::uint32_t pixel, int rs, int bs)
+{
+	unsigned const keep = 255 - (pixel >> 24);
+	std::uint32_t rb = (dest & 0x00FF00FFu) * keep + 0x00800080u;
+	std::uint32_t ag = ((dest >> 8) & 0x00FF00FFu) * keep + 0x00800080u;
+	rb = ((rb + ((rb >> 8) & 0x00FF00FFu)) >> 8) & 0x00FF00FFu;
+	ag = ((ag + ((ag >> 8) & 0x00FF00FFu)) >> 8) & 0x00FF00FFu;
+	rb += pixel & 0x00FF00FFu;
+	ag += (pixel >> 8) & 0x00FF00FFu;
+	if (((rb | ag) & 0x01000100u) != 0) {
+		return(Over(dest, (pixel >> rs) & 0xFF, (pixel >> 8) & 0xFF, (pixel >> bs) & 0xFF, pixel >> 24, rs, bs));
+	}
+	return(rb | (ag << 8));
+}
+
+
+// The UI's layer and the renderer drawing it.
+static SoftLayer _Layer;
+static std::vector<std::uint32_t> _LayerPixels;
+static int _LayerRedShift = -1;
+static int _LayerBlueShift = -1;
+static UIRmlSoftRenderClass * _Active = nullptr;
+
+static SoftScreen Layer_Target(void)
+{
+	SoftScreen target;
+	target.Pixels = _Layer.Pixels;
+	target.Width = _Layer.Width;
+	target.Height = _Layer.Height;
+	target.Pitch = _Layer.Pitch;
+	target.RedShift = _LayerRedShift;
+	target.BlueShift = _LayerBlueShift;
+	return(target);
+}
+
+// Sizes the layer to the screen; a new layer is clear. Returns false if it was already the screen's.
+static bool Ensure_Layer(void)
+{
+	SoftScreen const & screen = Soft_Screen();
+	if (_Layer.Width == screen.Width && _Layer.Height == screen.Height && _LayerRedShift == screen.RedShift && _LayerBlueShift == screen.BlueShift) {
+		return(false);
+	}
+	_LayerPixels.assign((size_t)std::max(screen.Width, 0) * (size_t)std::max(screen.Height, 0), 0);
+	_Layer.Pixels = _LayerPixels.empty() ? nullptr : _LayerPixels.data();
+	_Layer.Width = screen.Width;
+	_Layer.Height = screen.Height;
+	_Layer.Pitch = screen.Width;
+	_Layer.X0 = _Layer.Y0 = _Layer.X1 = _Layer.Y1 = 0;
+	_Layer.Version++;
+	_Layer.PartValid = false;
+	_LayerRedShift = screen.RedShift;
+	_LayerBlueShift = screen.BlueShift;
+	return(true);
+}
+
+static void Clear_Layer(void)
+{
+	for (int y = _Layer.Y0; y < _Layer.Y1; y++) {
+		std::uint32_t * row = _Layer.Pixels + (size_t)y * (size_t)_Layer.Pitch;
+		std::fill(row + _Layer.X0, row + _Layer.X1, 0u);
+	}
+	_Layer.X0 = _Layer.Y0 = _Layer.X1 = _Layer.Y1 = 0;
+	_Layer.Version++;
+	_Layer.PartValid = false;
+}
+
+// Only the box from x0,y0 to x1,y1 has been drawn again.
+static void Soft_UI_Layer_Changed(int x0, int y0, int x1, int y1)
+{
+	if (x1 <= x0 || y1 <= y0) {
+		return;
+	}
+	_Layer.PartFrom = _Layer.Version;
+	_Layer.Version++;
+	_Layer.PartValid = true;
+	_Layer.PartX0 = x0;
+	_Layer.PartY0 = y0;
+	_Layer.PartX1 = x1;
+	_Layer.PartY1 = y1;
+}
+
+static void Grow_Layer_Box(int x0, int y0, int x1, int y1)
+{
+	if (x1 <= x0 || y1 <= y0) {
+		return;
+	}
+	if (_Layer.X1 <= _Layer.X0 || _Layer.Y1 <= _Layer.Y0) {
+		_Layer.X0 = x0;
+		_Layer.Y0 = y0;
+		_Layer.X1 = x1;
+		_Layer.Y1 = y1;
+		return;
+	}
+	_Layer.X0 = std::min(_Layer.X0, x0);
+	_Layer.Y0 = std::min(_Layer.Y0, y0);
+	_Layer.X1 = std::max(_Layer.X1, x1);
+	_Layer.Y1 = std::max(_Layer.Y1, y1);
+}
+
+
+SoftLayer const & Soft_UI_Layer(void)
+{
+	return(_Layer);
+}
+
+
+void Soft_UI_Finish_Frame(void)
+{
+	if (_Active != nullptr) {
+		_Active->Finish_Frame();
+	}
+}
+
+
 static UIRenderMaskOperation Mask_Operation(Rml::ClipMaskOperation operation)
 {
 	switch (operation) {
@@ -65,6 +200,15 @@ void UIRmlSoftRenderClass::Shutdown(void)
 	Stencil.clear();
 	StencilWidth = 0;
 	StencilHeight = 0;
+	Commands.clear();
+	LastCommands.clear();
+	Drawing = false;
+	InFrame = false;
+	LayerStale = true;
+	if (_Active == this) {
+		_Active = nullptr;
+		Clear_Layer();
+	}
 }
 
 
@@ -90,6 +234,282 @@ void UIRmlSoftRenderClass::Begin_Frame(int x, int y, int width, int height)
 	ViewWidth = width;
 	ViewHeight = height;
 	Ensure_Stencil();
+
+	_Active = this;
+	int const view[4] = {x, y, width, height};
+	if (Ensure_Layer() || InFrame || !std::equal(view, view + 4, LastView)) {
+		LayerStale = true;
+		std::copy(view, view + 4, LastView);
+	}
+	Commands.clear();
+	Drawing = false;
+	Differs = false;
+	InFrame = true;
+}
+
+
+void UIRmlSoftRenderClass::Finish_Frame(void)
+{
+	if (!InFrame) {
+		// Nothing was rendered this frame, so the layer is to be clear.
+		Commands.clear();
+		Drawing = false;
+	}
+	InFrame = false;
+	bool const changed = Differs || Commands.size() != LastCommands.size();
+	if (!Drawing && (LayerStale || (changed && !Redraw_Part()))) {
+		Redraw_Commands_So_Far();
+	}
+	if (changed && !Drawing) {
+		LastCommands.swap(Commands);
+	}
+	if (Drawing) {
+		LastCommands.swap(Commands);
+		LayerStale = false;
+	}
+	Commands.clear();
+	Drawing = false;
+	Differs = false;
+}
+
+
+bool UIRmlSoftRenderClass::Command::operator==(Command const & other) const
+{
+	return(!Dead && !other.Dead && Mask == other.Mask && Operation == other.Operation && Geometry == other.Geometry
+		&& Translation.x == other.Translation.x && Translation.y == other.Translation.y && Texture == other.Texture
+		&& ScissorEnabled == other.ScissorEnabled && (!ScissorEnabled || Scissor == other.Scissor)
+		&& TransformEnabled == other.TransformEnabled && (!TransformEnabled || std::memcmp(Transform, other.Transform, sizeof(Transform)) == 0)
+		&& ClipMaskEnabled == other.ClipMaskEnabled);
+}
+
+
+UIRmlSoftRenderClass::Command UIRmlSoftRenderClass::Current_Command(void) const
+{
+	Command command;
+	command.ScissorEnabled = ScissorEnabled;
+	command.Scissor = Scissor;
+	command.TransformEnabled = TransformEnabled;
+	std::memcpy(command.Transform, Transform, sizeof(Transform));
+	command.ClipMaskEnabled = ClipMaskEnabled;
+	return(command);
+}
+
+
+void UIRmlSoftRenderClass::Submit(Command const & command)
+{
+	Soft_Note_UI_Drawn();
+	Commands.push_back(command);
+	if (Drawing) {
+		Execute(Commands.back());
+		return;
+	}
+	size_t const index = Commands.size() - 1;
+	if (!LayerStale) {
+		if (index < LastCommands.size() && LastCommands[index] == command) {
+			std::copy(LastCommands[index].Box, LastCommands[index].Box + 4, Commands.back().Box);
+		} else {
+			Differs = true;
+		}
+		return;
+	}
+	Redraw_Commands_So_Far();
+}
+
+
+/*
+** Draws again only the box covering the commands that differ from the last frame's, as they
+** were and as they are, if that is a small part of the layer. The commands the two frames start
+** and end with alike are left out, so a command put in or taken out (a highlight under the
+** pointer) counts as one that differs. A clip mask that differs can change what is drawn
+** anywhere, so then it's the whole layer. Returns false if it didn't.
+*/
+bool UIRmlSoftRenderClass::Redraw_Part(void)
+{
+	Command const live = Current_Command();
+	auto restore = [&]() {
+		ScissorEnabled = live.ScissorEnabled;
+		Scissor = live.Scissor;
+		TransformEnabled = live.TransformEnabled;
+		std::memcpy(Transform, live.Transform, sizeof(Transform));
+		ClipMaskEnabled = live.ClipMaskEnabled;
+	};
+	int box[4] = {0, 0, 0, 0};
+	auto add = [&](int const * other) {
+		if (other[2] <= other[0] || other[3] <= other[1]) {
+			return;
+		}
+		if (box[2] <= box[0] || box[3] <= box[1]) {
+			std::copy(other, other + 4, box);
+			return;
+		}
+		box[0] = std::min(box[0], other[0]);
+		box[1] = std::min(box[1], other[1]);
+		box[2] = std::max(box[2], other[2]);
+		box[3] = std::max(box[3], other[3]);
+	};
+	size_t const count = Commands.size(), lastcount = LastCommands.size();
+	size_t first = 0;
+	while (first < count && first < lastcount && LastCommands[first] == Commands[first]) {
+		first++;
+	}
+	size_t same_end = 0;
+	while (same_end < count - first && same_end < lastcount - first
+		&& LastCommands[lastcount - 1 - same_end] == Commands[count - 1 - same_end]) {
+		Command const & last = LastCommands[lastcount - 1 - same_end];
+		std::copy(last.Box, last.Box + 4, Commands[count - 1 - same_end].Box);
+		same_end++;
+	}
+	for (size_t i = first; i < lastcount - same_end; i++) {
+		if (LastCommands[i].Mask) {
+			return(false);
+		}
+		add(LastCommands[i].Box);
+	}
+	std::vector<ScreenVertex> vertices;
+	for (size_t i = first; i < count - same_end; i++) {
+		Command & command = Commands[i];
+		if (command.Mask) {
+			restore();
+			return(false);
+		}
+		ScissorEnabled = command.ScissorEnabled;
+		Scissor = command.Scissor;
+		TransformEnabled = command.TransformEnabled;
+		std::memcpy(Transform, command.Transform, sizeof(Transform));
+		Transform_Vertices(command.Geometry, command.Translation, vertices);
+		Find_Box(command, vertices);
+		add(command.Box);
+	}
+	restore();
+
+	long long const area = (long long)(box[2] - box[0]) * (box[3] - box[1]);
+	if (box[2] > box[0] && box[3] > box[1] && area * 2 > (long long)_Layer.Width * _Layer.Height) {
+		return(false);
+	}
+	if (area > 0) {
+		for (int y = box[1]; y < box[3]; y++) {
+			std::uint32_t * row = _Layer.Pixels + (size_t)y * (size_t)_Layer.Pitch;
+			std::fill(row + box[0], row + box[2], 0u);
+		}
+		Restricted = true;
+		std::copy(box, box + 4, Restrict);
+		StencilReference = 0;
+		for (Command & command : Commands) {
+			Execute(command);
+		}
+		Restricted = false;
+		restore();
+	}
+	if (area > 0) {
+		Soft_UI_Layer_Changed(box[0], box[1], box[2], box[3]);
+	}
+	return(true);
+}
+
+
+// The pixels a command can touch: its vertices' bounds, a pixel wider, within its clip.
+void UIRmlSoftRenderClass::Find_Box(Command & command, std::vector<ScreenVertex> const & vertices) const
+{
+	std::fill(command.Box, command.Box + 4, 0);
+	int clipx0, clipy0, clipx1, clipy1;
+	if (vertices.empty() || !Clip_Rect(clipx0, clipy0, clipx1, clipy1)) {
+		return;
+	}
+	float minx = vertices[0].X, maxx = minx, miny = vertices[0].Y, maxy = miny;
+	for (ScreenVertex const & v : vertices) {
+		minx = std::min(minx, v.X);
+		maxx = std::max(maxx, v.X);
+		miny = std::min(miny, v.Y);
+		maxy = std::max(maxy, v.Y);
+	}
+	if (!std::isfinite(minx) || !std::isfinite(maxx) || !std::isfinite(miny) || !std::isfinite(maxy)) {
+		int const whole[4] = {clipx0, clipy0, clipx1, clipy1};
+		std::copy(whole, whole + 4, command.Box);
+		return;
+	}
+	auto pixel = [](float value) { return((int)std::clamp(value, -1.0e6f, 1.0e6f)); };
+	int const box[4] = {std::max(clipx0, pixel(std::floor(minx)) - 1), std::max(clipy0, pixel(std::floor(miny)) - 1),
+		std::min(clipx1, pixel(std::ceil(maxx)) + 1), std::min(clipy1, pixel(std::ceil(maxy)) + 1)};
+	if (box[2] > box[0] && box[3] > box[1]) {
+		std::copy(box, box + 4, command.Box);
+	}
+}
+
+
+// Clears the layer and draws this frame's commands so far; the rest of the frame is drawn as it comes.
+void UIRmlSoftRenderClass::Redraw_Commands_So_Far(void)
+{
+	Command const live = Current_Command();
+	Drawing = true;
+	Clear_Layer();
+	StencilReference = 0;
+	for (Command & command : Commands) {
+		Execute(command);
+	}
+	ScissorEnabled = live.ScissorEnabled;
+	Scissor = live.Scissor;
+	TransformEnabled = live.TransformEnabled;
+	std::memcpy(Transform, live.Transform, sizeof(Transform));
+	ClipMaskEnabled = live.ClipMaskEnabled;
+}
+
+
+void UIRmlSoftRenderClass::Execute(Command & command)
+{
+	ScissorEnabled = command.ScissorEnabled;
+	Scissor = command.Scissor;
+	TransformEnabled = command.TransformEnabled;
+	std::memcpy(Transform, command.Transform, sizeof(Transform));
+	ClipMaskEnabled = command.ClipMaskEnabled;
+
+	std::vector<ScreenVertex> vertices;
+	Transform_Vertices(command.Geometry, command.Translation, vertices);
+	std::vector<int> const & indices = ((SoftGeometry const *)command.Geometry)->Indices;
+	if (!Restricted) {
+		Find_Box(command, vertices);
+	}
+
+	if (!command.Mask) {
+		Texture const * sampled = (command.Texture != 0) ? (Texture const *)command.Texture : nullptr;
+		Draw_Triangles(vertices, indices, sampled, DRAW_COLOUR, 0);
+		return;
+	}
+
+	UIRenderMaskStep step;
+	if (!UI_Render_Mask_Step(Mask_Operation(command.Operation), StencilReference, step)) {
+		Fail("clip masks nest deeper than the stencil counts");
+		return;
+	}
+	Ensure_Stencil();
+	if (step.Clear) {
+		std::fill(Stencil.begin(), Stencil.end(), 0);
+	}
+	Draw_Triangles(vertices, indices, nullptr, step.Increment ? DRAW_MASK_INCREMENT : DRAW_MASK_WRITE, step.Write);
+	StencilReference = step.Reference;
+}
+
+
+/*
+** Before a geometry or texture goes: a command of this frame's that uses it must be drawn while
+** it can be, and a later handle at the same address isn't this one, so the last frame's commands
+** that used it match nothing.
+*/
+void UIRmlSoftRenderClass::Release_Handle(Rml::CompiledGeometryHandle geometry, Rml::TextureHandle texture)
+{
+	auto uses = [&](Command const & command) {
+		return((geometry != 0 && command.Geometry == geometry) || (texture != 0 && command.Texture == texture));
+	};
+	if (std::any_of(Commands.begin(), Commands.end(), uses)) {
+		if (InFrame && !Drawing) {
+			Redraw_Commands_So_Far();
+		}
+		LayerStale = true;
+	}
+	for (Command & command : LastCommands) {
+		if (uses(command)) {
+			command.Dead = true;
+		}
+	}
 }
 
 
@@ -154,6 +574,7 @@ void UIRmlSoftRenderClass::ReleaseGeometry(Rml::CompiledGeometryHandle handle)
 	if (handle == 0) {
 		return;
 	}
+	Release_Handle(handle, 0);
 	SoftGeometry * geometry = (SoftGeometry *)handle;
 	Statistics.GeometryCount--;
 	Statistics.GeometryBytes -= geometry->Vertices.size() * sizeof(Rml::Vertex) + geometry->Indices.size() * sizeof(int);
@@ -210,17 +631,17 @@ bool UIRmlSoftRenderClass::Clip_Rect(int & x0, int & y0, int & x1, int & y1) con
 		x1 = std::min(x1, (int)clip.X + (int)clip.Width);
 		y1 = std::min(y1, (int)clip.Y + (int)clip.Height);
 	}
+	if (Restricted) {
+		x0 = std::max(x0, Restrict[0]);
+		y0 = std::max(y0, Restrict[1]);
+		x1 = std::min(x1, Restrict[2]);
+		y1 = std::min(y1, Restrict[3]);
+	}
 	return(x1 > x0 && y1 > y0);
 }
 
 
 
-// a * b / 255, rounded, for bytes.
-static inline unsigned Mul255(unsigned a, unsigned b)
-{
-	unsigned const t = a * b + 128;
-	return((t + (t >> 8)) >> 8);
-}
 
 
 /*
@@ -326,19 +747,15 @@ static bool Draw_Quad(SoftScreen const & screen, int clipx0, int clipy0, int cli
 		if (ca == 0 && cr == 0 && cg == 0 && cb == 0) {
 			return(true);
 		}
-		unsigned const keep = 255 - ca;
 		std::uint32_t const solid = 0xFF000000u | (cr << rs) | (cg << 8) | (cb << bs);
 		for (int y = y0; y < y1; y++) {
 			std::uint32_t * row = screen.Pixels + (size_t)y * (size_t)screen.Pitch;
-			if (keep == 0) {
+			if (ca == 255) {
 				for (int x = x0; x < x1; x++) row[x] = solid;
 			} else {
+				std::uint32_t const pixel = (ca << 24) | (cr << rs) | (cg << 8) | (cb << bs);
 				for (int x = x0; x < x1; x++) {
-					std::uint32_t const dest = row[x];
-					unsigned const dr = std::min(cr + Mul255((dest >> rs) & 0xFF, keep), 255u);
-					unsigned const dg = std::min(cg + Mul255((dest >> 8) & 0xFF, keep), 255u);
-					unsigned const db = std::min(cb + Mul255((dest >> bs) & 0xFF, keep), 255u);
-					row[x] = 0xFF000000u | (dr << rs) | (dg << 8) | (db << bs);
+					row[x] = Over_Packed(row[x], pixel, rs, bs);
 				}
 			}
 		}
@@ -352,6 +769,7 @@ static bool Draw_Quad(SoftScreen const & screen, int clipx0, int clipy0, int cli
 	std::int32_t const ustep = (std::int32_t)std::lround(dudx * 65536.0);
 	std::int32_t const ustart = (std::int32_t)std::floor(((double)u0 * tw + ((double)x0 + 0.5 - minx) * dudx) * 65536.0);
 	std::uint32_t const * pixels = texture->Pixels.data();
+	bool const swap = rs != 0;
 
 	for (int y = y0; y < y1; y++) {
 		int ty = (int)std::floor((double)v0 * th + ((double)y + 0.5 - miny) * dvdy);
@@ -362,24 +780,17 @@ static bool Draw_Quad(SoftScreen const & screen, int clipx0, int clipy0, int cli
 		for (int x = x0; x < x1; x++, u += ustep) {
 			int tx = u >> 16;
 			tx = tx < 0 ? 0 : (tx >= tw ? tw - 1 : tx);
-			std::uint32_t const texel = texrow[tx];
-			unsigned r = texel & 0xFF, g = (texel >> 8) & 0xFF, b = (texel >> 16) & 0xFF, a = texel >> 24;
+			std::uint32_t texel = texrow[tx];
 			if (!white) {
-				r = Mul255(r, cr); g = Mul255(g, cg); b = Mul255(b, cb); a = Mul255(a, ca);
+				texel = Mul255(texel & 0xFF, cr) | (Mul255((texel >> 8) & 0xFF, cg) << 8)
+					| (Mul255((texel >> 16) & 0xFF, cb) << 16) | (Mul255(texel >> 24, ca) << 24);
 			}
-			if (a == 0 && r == 0 && g == 0 && b == 0) {
+			if (texel == 0) {
 				continue;
 			}
-			if (a == 255) {
-				row[x] = 0xFF000000u | (r << rs) | (g << 8) | (b << bs);
-				continue;
-			}
-			std::uint32_t const dest = row[x];
-			unsigned const keep = 255 - a;
-			unsigned const dr = std::min(r + Mul255((dest >> rs) & 0xFF, keep), 255u);
-			unsigned const dg = std::min(g + Mul255((dest >> 8) & 0xFF, keep), 255u);
-			unsigned const db = std::min(b + Mul255((dest >> bs) & 0xFF, keep), 255u);
-			row[x] = 0xFF000000u | (dr << rs) | (dg << 8) | (db << bs);
+			// Textures are red first; the layer may want blue there.
+			std::uint32_t const pixel = swap ? (texel & 0xFF00FF00u) | ((texel & 0xFFu) << 16) | ((texel >> 16) & 0xFFu) : texel;
+			row[x] = (pixel >> 24) == 255 ? pixel : Over_Packed(row[x], pixel, rs, bs);
 		}
 	}
 	return(true);
@@ -395,16 +806,31 @@ static inline bool Top_Left(float ax, float ay, float bx, float by)
 
 void UIRmlSoftRenderClass::Draw_Triangles(std::vector<ScreenVertex> const & vertices, std::vector<int> const & indices, Texture const * texture, DrawKind kind, std::uint8_t value)
 {
-	SoftScreen const & screen = Soft_Screen();
+	SoftScreen const screen = Layer_Target();
 	if (screen.Pixels == nullptr) {
 		return;
 	}
-	Soft_Note_UI_Drawn();
 	int const rs = screen.RedShift, bs = screen.BlueShift;
 
 	int clipx0, clipy0, clipx1, clipy1;
 	if (!Clip_Rect(clipx0, clipy0, clipx1, clipy1)) {
 		return;
+	}
+	if (kind == DRAW_COLOUR && !vertices.empty()) {
+		float minx = vertices[0].X, maxx = minx, miny = vertices[0].Y, maxy = miny;
+		for (ScreenVertex const & v : vertices) {
+			minx = std::min(minx, v.X);
+			maxx = std::max(maxx, v.X);
+			miny = std::min(miny, v.Y);
+			maxy = std::max(maxy, v.Y);
+		}
+		if (!std::isfinite(minx) || !std::isfinite(maxx) || !std::isfinite(miny) || !std::isfinite(maxy)) {
+			Grow_Layer_Box(clipx0, clipy0, clipx1, clipy1);
+		} else {
+			auto pixel = [](float value) { return((int)std::clamp(value, -1.0e6f, 1.0e6f)); };
+			Grow_Layer_Box(std::max(clipx0, pixel(std::floor(minx)) - 1), std::max(clipy0, pixel(std::floor(miny)) - 1),
+				std::min(clipx1, pixel(std::ceil(maxx)) + 1), std::min(clipy1, pixel(std::ceil(maxy)) + 1));
+		}
 	}
 
 	bool const test_mask = (kind == DRAW_COLOUR) && ClipMaskEnabled;
@@ -514,7 +940,8 @@ void UIRmlSoftRenderClass::Draw_Triangles(std::vector<ScreenVertex> const & vert
 				unsigned const dr = r + (((dest >> rs) & 0xFF) * keep + 127) / 255;
 				unsigned const dg = g + (((dest >> 8) & 0xFF) * keep + 127) / 255;
 				unsigned const db = bl + (((dest >> bs) & 0xFF) * keep + 127) / 255;
-				row[x] = 0xFF000000u | (std::min(dr, 255u) << rs) | (std::min(dg, 255u) << 8) | (std::min(db, 255u) << bs);
+				unsigned const da = al + ((dest >> 24) * keep + 127) / 255;
+				row[x] = (std::min(da, 255u) << 24) | (std::min(dr, 255u) << rs) | (std::min(dg, 255u) << 8) | (std::min(db, 255u) << bs);
 			}
 		}
 	}
@@ -532,10 +959,11 @@ void UIRmlSoftRenderClass::RenderGeometry(Rml::CompiledGeometryHandle handle, Rm
 		return;
 	}
 
-	std::vector<ScreenVertex> vertices;
-	Transform_Vertices(handle, translation, vertices);
-	Texture const * sampled = (texture != 0) ? (Texture const *)texture : nullptr;
-	Draw_Triangles(vertices, ((SoftGeometry const *)handle)->Indices, sampled, DRAW_COLOUR, 0);
+	Command command = Current_Command();
+	command.Geometry = handle;
+	command.Translation = translation;
+	command.Texture = texture;
+	Submit(command);
 }
 
 
@@ -607,6 +1035,7 @@ void UIRmlSoftRenderClass::ReleaseTexture(Rml::TextureHandle handle)
 	if (handle == 0) {
 		return;
 	}
+	Release_Handle(0, handle);
 	Texture * texture = (Texture *)handle;
 	Statistics.TextureCount--;
 	Statistics.TextureBytes -= texture->Pixels.size() * 4;
@@ -656,19 +1085,10 @@ void UIRmlSoftRenderClass::RenderToClipMask(Rml::ClipMaskOperation operation, Rm
 		return;
 	}
 
-	UIRenderMaskStep step;
-	if (!UI_Render_Mask_Step(Mask_Operation(operation), StencilReference, step)) {
-		Fail("clip masks nest deeper than the stencil counts");
-		return;
-	}
-
-	Ensure_Stencil();
-	if (step.Clear) {
-		std::fill(Stencil.begin(), Stencil.end(), 0);
-	}
-
-	std::vector<ScreenVertex> vertices;
-	Transform_Vertices(handle, translation, vertices);
-	Draw_Triangles(vertices, ((SoftGeometry const *)handle)->Indices, nullptr, step.Increment ? DRAW_MASK_INCREMENT : DRAW_MASK_WRITE, step.Write);
-	StencilReference = step.Reference;
+	Command command = Current_Command();
+	command.Mask = true;
+	command.Operation = operation;
+	command.Geometry = handle;
+	command.Translation = translation;
+	Submit(command);
 }

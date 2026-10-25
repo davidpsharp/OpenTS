@@ -31,5 +31,32 @@ struct SoftScreen
 // The screen for this frame, or one with no pixels before Backend_Init.
 SoftScreen const & Soft_Screen(void);
 
-// The UI says it drew into the screen this frame.
+// The UI says it drew this frame.
 void Soft_Note_UI_Drawn(void);
+
+// Something else has drawn on the display (the desktop, while the game was away from it): the
+// next frame is made and sent whole.
+void Soft_Screen_Lost(void);
+
+// What the UI drew, which the presenter lays over the game frame: the screen's size and pixel
+// layout, premultiplied, with alpha at bit 24. Every pixel outside the box from X0,Y0 to
+// X1,Y1 (X1 and Y1 excluded) is clear.
+struct SoftLayer
+{
+	std::uint32_t * Pixels = nullptr;
+	int Width = 0;
+	int Height = 0;
+	int Pitch = 0; // in pixels
+	int X0 = 0, Y0 = 0, X1 = 0, Y1 = 0;
+	unsigned Version = 0; // changes whenever the pixels do
+	// When PartValid, the pixels at version PartFrom were changed to these only in the box from
+	// PartX0,PartY0 to PartX1,PartY1 (PartX1 and PartY1 excluded).
+	bool PartValid = false;
+	unsigned PartFrom = 0;
+	int PartX0 = 0, PartY0 = 0, PartX1 = 0, PartY1 = 0;
+};
+
+SoftLayer const & Soft_UI_Layer(void);
+
+// Ends the UI's frame; the layer then holds what the UI drew in it, or nothing if it drew nothing.
+void Soft_UI_Finish_Frame(void);

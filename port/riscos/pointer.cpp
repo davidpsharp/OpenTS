@@ -99,6 +99,8 @@ extern GameOptionsClass Options;
 
 // Whether the desktop's pointer is on, as this file last set it (-1: not known).
 static int _HardwareOn = -1;
+// The hardware pointer shows a copy of the game's while a scenario loads (RISCOS_Pointer_Loading).
+static bool _Loading = false;
 
 void RISCOS_Pointer_Init(void)
 {
@@ -111,6 +113,9 @@ static void Update_Hardware_Pointer(bool force)
 {
 	if (RISCOS_Desktop_Has_Screen()) {
 		_HardwareOn = -1;
+		return;
+	}
+	if (_Loading) {
 		return;
 	}
 	// The desktop's pointer only stands in for a cursor with no picture, and only if the player
@@ -140,7 +145,7 @@ bool RISCOS_Pointer_Changed(void)
 // The picture to draw now, or none (and then the desktop's pointer stays as SDL left it).
 static PointerPicture const * Current_Picture(void)
 {
-	PointerPicture const * picture = Find_Picture();
+	PointerPicture const * picture = _Loading ? nullptr : Find_Picture();
 	Note_Drawn(picture);
 	Update_Hardware_Pointer(false);
 	return(picture);
@@ -211,6 +216,22 @@ void RISCOS_Pointer_Draw(std::uint32_t * pixels, int pitch, int width, int heigh
 	Draw_Picture(*picture, 1, (int)mousex, (int)mousey, pixels, pitch, width, height, Pixel32{redshift, blueshift});
 }
 
+bool RISCOS_Pointer_Bounds(int & x, int & y, int & width, int & height)
+{
+	PointerPicture const * picture = _Loading ? nullptr : Find_Picture();
+	if (picture == nullptr) {
+		return(false);
+	}
+	float mousex = 0.0f;
+	float mousey = 0.0f;
+	SDL_GetMouseState(&mousex, &mousey);
+	x = (int)mousex - picture->HotX;
+	y = (int)mousey - picture->HotY;
+	width = picture->Width;
+	height = picture->Height;
+	return(true);
+}
+
 // Where the mouse is in a frame shown stretched over the screen rectangle given, and the step
 // that makes a picture made at the screen's scale (a whole multiple of the frame's) the frame's.
 static void Place_In_Frame(int width, int height, int destx, int desty, int destwidth, int destheight,
@@ -238,3 +259,129 @@ void RISCOS_Pointer_Draw_Into_Frame(std::uint32_t * pixels, int pitch, int width
 	Draw_Picture(*picture, step, x, y, pixels, pitch, width, height, Pixel32{redshift, blueshift});
 }
 
+
+// The hardware pointer shape the loading pointer is defined as; the desktop's are 1 and 2.
+static int const LOADING_SHAPE = 3;
+static int const HARDWARE_MAX = 32; // pixels a side
+// The desktop's pointer colours, kept while the loading pointer's are in their place.
+static unsigned _SavedColours[3];
+
+static unsigned Read_Pointer_Colour(int colour)
+{
+	_kernel_swi_regs regs;
+	regs.r[0] = colour;
+	regs.r[1] = 25;
+	if (_kernel_swi(0x2F /* OS_ReadPalette */, &regs, &regs) != nullptr) {
+		return(0);
+	}
+	return((unsigned)regs.r[2]); // 0xBBGGRR00
+}
+
+static void Set_Pointer_Colour(int colour, unsigned red, unsigned green, unsigned blue)
+{
+	int const vdu[6] = {19, colour, 25, (int)red, (int)green, (int)blue};
+	for (int value : vdu) {
+		_kernel_oswrch(value);
+	}
+}
+
+// The picture in at most three colours and HARDWARE_MAX pixels a side: the dark outline, and
+// the rest split at its middle brightness. Returns false if it has no opaque pixels.
+static bool Define_Loading_Shape(PointerPicture const & picture)
+{
+	int const step = std::max(1, (std::max(picture.Width, picture.Height) + HARDWARE_MAX - 1) / HARDWARE_MAX);
+	int const width = (picture.Width + step - 1) / step;
+	int const height = (picture.Height + step - 1) / step;
+
+	auto brightness = [](unsigned argb) {
+		return((((argb >> 16) & 0xFF) * 3 + ((argb >> 8) & 0xFF) * 6 + (argb & 0xFF)) / 10);
+	};
+	std::vector<unsigned> pixels((size_t)width * (size_t)height, 0);
+	std::vector<unsigned> light;
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			unsigned const argb = picture.Pixels[(size_t)(y * step) * (size_t)picture.Width + (size_t)(x * step)];
+			pixels[(size_t)y * (size_t)width + (size_t)x] = argb;
+			if ((argb >> 24) >= 128 && brightness(argb) >= 64) {
+				light.push_back(brightness(argb));
+			}
+		}
+	}
+	std::nth_element(light.begin(), light.begin() + light.size() / 2, light.end());
+	unsigned const middle = light.empty() ? 256 : light[light.size() / 2];
+
+	int const rowbytes = (width + 3) / 4;
+	std::vector<unsigned char> shape((size_t)rowbytes * (size_t)height, 0);
+	unsigned sums[3][4] = {};
+	bool any = false;
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			unsigned const argb = pixels[(size_t)y * (size_t)width + (size_t)x];
+			if ((argb >> 24) < 128) {
+				continue;
+			}
+			unsigned const level = brightness(argb);
+			int const colour = level < 64 ? 1 : (level < middle ? 2 : 3);
+			shape[(size_t)y * (size_t)rowbytes + (size_t)(x / 4)] |= (unsigned char)(colour << ((x % 4) * 2));
+			sums[colour - 1][0] += (argb >> 16) & 0xFF;
+			sums[colour - 1][1] += (argb >> 8) & 0xFF;
+			sums[colour - 1][2] += argb & 0xFF;
+			sums[colour - 1][3]++;
+			any = true;
+		}
+	}
+	if (!any) {
+		return(false);
+	}
+
+	unsigned char block[10];
+	block[0] = 0;
+	block[1] = LOADING_SHAPE;
+	block[2] = (unsigned char)rowbytes;
+	block[3] = (unsigned char)height;
+	block[4] = (unsigned char)std::min(picture.HotX / step, width - 1);
+	block[5] = (unsigned char)std::min(picture.HotY / step, height - 1);
+	unsigned const address = (unsigned)(uintptr_t)shape.data();
+	for (int i = 0; i < 4; i++) {
+		block[6 + i] = (unsigned char)(address >> (i * 8));
+	}
+	_kernel_swi_regs regs;
+	regs.r[0] = 21;
+	regs.r[1] = (int)block;
+	if (_kernel_swi(0x07 /* OS_Word */, &regs, &regs) != nullptr) {
+		return(false);
+	}
+
+	for (int colour = 1; colour <= 3; colour++) {
+		_SavedColours[colour - 1] = Read_Pointer_Colour(colour);
+		unsigned const * sum = sums[colour - 1];
+		if (sum[3] > 0) {
+			Set_Pointer_Colour(colour, sum[0] / sum[3], sum[1] / sum[3], sum[2] / sum[3]);
+		}
+	}
+	return(true);
+}
+
+void RISCOS_Pointer_Loading(bool loading)
+{
+	if (loading == _Loading) {
+		return;
+	}
+	if (loading) {
+		PointerPicture const * picture = Find_Picture();
+		if (picture == nullptr || RISCOS_Desktop_Has_Screen() || !Define_Loading_Shape(*picture)) {
+			return;
+		}
+		_Loading = true;
+		_kernel_osbyte(106, LOADING_SHAPE, 0);
+		_HardwareOn = -1;
+		return;
+	}
+	_Loading = false;
+	_kernel_osbyte(106, 0, 0);
+	for (int colour = 1; colour <= 3; colour++) {
+		unsigned const saved = _SavedColours[colour - 1];
+		Set_Pointer_Colour(colour, (saved >> 8) & 0xFF, (saved >> 16) & 0xFF, (saved >> 24) & 0xFF);
+	}
+	Update_Hardware_Pointer(true);
+}
