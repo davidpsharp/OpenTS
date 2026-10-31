@@ -210,6 +210,46 @@ static void Finish_Decided_Game(void)
 }
 
 
+#ifdef __riscos__
+/// <summary>
+/// Draws the map, timing for Frame_Unseen how long a draw takes to reach its present.
+/// </summary>
+static double PresentLeadMs = 0;
+static void Render_Map(void)
+{
+	unsigned int const before = Video_Last_Present_Time();
+	unsigned int const startms = timeGetTime();
+	Map.Render();
+	// Finished a little before a present is due (Frame_Unseen started it early): wait for it,
+	// rather than draw again.
+	unsigned int const left = Video_Last_Present_Time() == before ? Video_Present_Wait_Left() : 0;
+	if (left > 0 && left <= 4) {
+		while (Video_Present_Wait_Left() > 0) {
+		}
+		Video_Present_If_Dirty();
+	}
+	unsigned int const presented = Video_Last_Present_Time();
+	if (presented != before) {
+		PresentLeadMs += ((double)(presented - startms) - PresentLeadMs) / 8;
+	}
+}
+
+
+/// <summary>
+/// Whether a frame drawn now would never be seen: it would be finished too soon after the last
+/// present to be presented, and a later one would replace it. A Pi at the faster speeds otherwise
+/// spends most of its time drawing frames nobody sees.
+/// </summary>
+static bool Frame_Unseen(void)
+{
+	return(Video_Present_Wait_Left() > PresentLeadMs + 1);
+}
+#else
+static void Render_Map(void) { Map.Render(); }
+static bool Frame_Unseen(void) { return(false); }
+#endif
+
+
 /// <summary>
 /// The frame rate the loop is held to, or zero for no limit.
 /// </summary>
@@ -316,7 +356,9 @@ bool Main_Loop(void)
 				Ipx.Store_Stats();
 			}
 			Update_Fogged_Objects();
-			Map.Render();
+			if (!Frame_Unseen()) {
+				Render_Map();
+			}
 		}
 	}
 
@@ -590,11 +632,11 @@ void Sync_Delay(void)
 		if (SpecialDialog == SDLG_NONE && GameInFocus == true) {
 			KeyNumType input = KN_NONE;
 			int x, y;
-			if (FrameTimer > 10) {
+			if (FrameTimer > 10 && !Frame_Unseen()) {
 				Map.Input(input, x, y);
 				Keyboard_Process(input);
 				TacticalMap->AI();
-				Map.Render();
+				Render_Map();
 			} else {
 				Sleep(0);
 			}

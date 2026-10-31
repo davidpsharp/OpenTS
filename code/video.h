@@ -51,6 +51,8 @@ void Video_Mark_Dirty(void);
 void Video_Mark_Overlay_Dirty(void);
 void Video_Present(void);
 void Video_Present_If_Dirty(void);
+unsigned int Video_Present_Wait_Left(void);
+unsigned int Video_Last_Present_Time(void);
 void Video_Present_Now(void);
 
 VideoScaleInfo const & Video_Get_Scale_Info(void);

@@ -387,6 +387,26 @@ void Video_Present_If_Dirty(void)
 }
 
 
+/// <summary>
+/// How many ms until Video_Present_If_Dirty will present again (a display refresh after the
+/// last present), or zero if it would now.
+/// </summary>
+unsigned int Video_Present_Wait_Left(void)
+{
+	unsigned int const since = timeGetTime() - _LastPresentTime;
+	return(since < _PresentInterval ? _PresentInterval - since : 0);
+}
+
+
+/// <summary>
+/// When the last present started, in timeGetTime's ms.
+/// </summary>
+unsigned int Video_Last_Present_Time(void)
+{
+	return(_LastPresentTime);
+}
+
+
 void Video_Present_Now(void)
 {
 	if (!_Dirty.Is_Dirty()) {

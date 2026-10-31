@@ -180,6 +180,19 @@ instance after moving it to a faster computer, set this before running it:
 Saved games are in !OpenTS.Saved Games. They can be moved between RISC OS
 and OpenTS on other computers.
 
+Game speed: the game starts at Medium, 30 game turns a second, which is
+the original game's pace. The screen shows 60 frames a second, so at
+Medium the units move on every second frame, while scrolling and the
+pointer move on every frame. For smoother movement choose Faster, 60
+turns a second, one for every frame shown; the whole game then plays
+twice as fast. A Pi 4 has time to spare at Faster, but a Pi 2 or 3 may
+slow down a little in a busy game. Fastest has no limit: a Pi runs a
+skirmish at hundreds of turns a second, far too fast to play.
+Set the speed on the main menu in Options, then Game Settings; during a
+game in Options, then Game Controls; or on the skirmish screen, where 3
+is Medium, 5 Faster and 6 Fastest. Game Settings and Game Controls keep
+it for next time. In a network game the host's setting is used.
+
 
 Network play
 ------------
