@@ -1,0 +1,126 @@
+diff --git a/src/video/riscos/SDL_riscosevents.c b/src/video/riscos/SDL_riscosevents.c
+--- a/src/video/riscos/SDL_riscosevents.c
++++ b/src/video/riscos/SDL_riscosevents.c
+@@ -26,6 +26,7 @@
+ 
+ #include "SDL_riscosvideo.h"
+ #include "SDL_riscosevents_c.h"
++#include "SDL_riscosmodes.h"
+ #include "scancodes_riscos.h"
+ 
+ #include <kernel.h>
+@@ -167,6 +168,7 @@
+ 
+ void RISCOS_PumpEvents(SDL_VideoDevice *_this)
+ {
++    RISCOS_CheckModeChanged(_this);
+     RISCOS_PollMouse(_this);
+     RISCOS_PollKeyboard(_this);
+ }
+diff --git a/src/video/riscos/SDL_riscosmodes.c b/src/video/riscos/SDL_riscosmodes.c
+--- a/src/video/riscos/SDL_riscosmodes.c
++++ b/src/video/riscos/SDL_riscosmodes.c
+@@ -24,6 +24,7 @@
+ 
+ #include "../SDL_sysvideo.h"
+ #include "../../events/SDL_mouse_c.h"
++#include "../../events/SDL_windowevents_c.h"
+ 
+ #include "SDL_riscosvideo.h"
+ #include "SDL_riscosmodes.h"
+@@ -227,6 +228,57 @@
+         return false;
+     }
+     return true;
++}
++
++/* OpenTS: the desktop's mode can change while a full-screen program waits on the desktop
++   (Display Manager, or a window resized under an emulator), but SDL read it only at the start,
++   so the program went on drawing at the old size. Take the screen's mode as the desktop's again,
++   and the size of each full-screen window from it. */
++void RISCOS_CheckModeChanged(SDL_VideoDevice *_this)
++{
++    SDL_VideoDisplay *display = SDL_GetVideoDisplay(SDL_GetPrimaryDisplay());
++    int *current = (int *)-1;
++    SDL_DisplayMode mode;
++    SDL_Window *window;
++    _kernel_swi_regs regs;
++    bool active;
++    size_t size;
++    int width, height;
++    SDL_PixelFormat format;
++
++    // Only the desktop's own mode; one SDL set itself is left alone.
++    if (!display || display->current_mode != &display->desktop_mode) {
++        return;
++    }
++    width = read_mode_variable(current, 11) + 1;
++    height = read_mode_variable(current, 12) + 1;
++    format = RISCOS_ModeToPixelFormat(read_mode_variable(current, 3), read_mode_variable(current, 0),
++                                      read_mode_variable(current, 9));
++    if (width == display->desktop_mode.w && height == display->desktop_mode.h && format == display->desktop_mode.format) {
++        return;
++    }
++
++    regs.r[0] = 1;
++    if (_kernel_swi(OS_ScreenMode, &regs, &regs) || !read_mode_block((int *)regs.r[1], &mode, true)) {
++        return;
++    }
++    size = measure_mode_block((int *)regs.r[1]);
++    mode.internal = copy_memory((int *)regs.r[1], size, size);
++    if (!mode.internal) {
++        return;
++    }
++    // SDL keeps the desktop mode as it was while a window is full screen; this is the desktop's.
++    active = display->fullscreen_active;
++    display->fullscreen_active = false;
++    SDL_SetDesktopDisplayMode(display, &mode);
++    display->fullscreen_active = active;
++    SDL_ResetFullscreenDisplayModes(display);
++
++    for (window = _this->windows; window; window = window->next) {
++        if (window->flags & SDL_WINDOW_FULLSCREEN) {
++            SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, width, height);
++        }
++    }
+ }
+ 
+ bool RISCOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay *display)
+@@ -335,4 +387,14 @@
+     return true;
+ }
+ 
++/* OpenTS: back to the desktop's mode (as the program quits): if the desktop's mode changed
++   while the program waited on the desktop, that is the mode to keep, not the one from the start. */
++bool RISCOS_SetDisplayModeChecked(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
++{
++    if (mode == &display->desktop_mode) {
++        RISCOS_CheckModeChanged(_this);
++    }
++    return RISCOS_SetDisplayMode(_this, display, mode);
++}
++
+ #endif // SDL_VIDEO_DRIVER_RISCOS
+diff --git a/src/video/riscos/SDL_riscosmodes.h b/src/video/riscos/SDL_riscosmodes.h
+--- a/src/video/riscos/SDL_riscosmodes.h
++++ b/src/video/riscos/SDL_riscosmodes.h
+@@ -26,5 +26,7 @@
+ extern bool RISCOS_InitModes(SDL_VideoDevice *_this);
+ extern bool RISCOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay *display);
+ extern bool RISCOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
++extern void RISCOS_CheckModeChanged(SDL_VideoDevice *_this);
++extern bool RISCOS_SetDisplayModeChecked(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
+ 
+ #endif // SDL_riscosmodes_h_
+diff --git a/src/video/riscos/SDL_riscosvideo.c b/src/video/riscos/SDL_riscosvideo.c
+--- a/src/video/riscos/SDL_riscosvideo.c
++++ b/src/video/riscos/SDL_riscosvideo.c
+@@ -76,7 +76,7 @@
+     device->PumpEvents = RISCOS_PumpEvents;
+ 
+     device->GetDisplayModes = RISCOS_GetDisplayModes;
+-    device->SetDisplayMode = RISCOS_SetDisplayMode;
++    device->SetDisplayMode = RISCOS_SetDisplayModeChecked;
+ 
+     device->CreateSDLWindow = RISCOS_CreateWindow;
+     device->DestroyWindow = RISCOS_DestroyWindow;
