@@ -10,7 +10,7 @@ ENV=/root/gccsdk/env
 OUT=$W/build/riscos/!OpenTS
 rm -rf "$OUT"
 mkdir -p "$OUT"
-cp $W/port/riscos/app/!OpenTS/* "$OUT/"
+cp -r $W/port/riscos/app/!OpenTS/* "$OUT/"
 # The version and its date, from the header the build made, at the top of !Help (the Info
 # window and the log say the same).
 LINE=$(sed -n 's/^#define OPENTS_PORT_VERSION_LINE  "\(.*\)"$/\1/p' $W/build/riscos/generated/opents_port.h)

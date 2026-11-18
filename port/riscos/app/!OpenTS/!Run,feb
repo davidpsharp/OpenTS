@@ -5,6 +5,12 @@ RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad Sy
 RMEnsure SharedUnixLibrary 1.16 Error OpenTS needs SharedUnixLibrary 1.16 or later
 RMEnsure ARMEABISupport 1.03 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport
 RMEnsure ARMEABISupport 1.03 Error OpenTS needs ARMEABISupport 1.03 or later
+| The settings start as a copy of Defaults.sun/ini, so an update (from PackMan, say) never
+| replaces the player's own.
+Set OpenTS$Settings 0
+IfThere <OpenTS$Dir>.sun/ini Then Set OpenTS$Settings 1
+If <OpenTS$Settings>=0 Then Copy <OpenTS$Dir>.Defaults.sun/ini <OpenTS$Dir>.sun/ini ~C~V
+Unset OpenTS$Settings
 | The game data comes from the freeware CD images (ISO files), dragged onto the icon bar
 | icon, and goes in the gamedata directory here (deleting it uninstalls it). Utils.tsprep
 | moves data an earlier version installed straight into this directory into gamedata, then

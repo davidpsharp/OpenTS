@@ -23,6 +23,13 @@ everything in software, since RISC OS has no 3D drivers, and runs full
 screen. Its source code, updates and bug reports for the port are at the
 RISC OS port address above.
 
+PackMan can install it and keep it up to date: in PackMan's Sources
+(Choices, then Sources), add http://davidsharp.com/riscos/pkg/index
+(https:// works too), update the lists, and install OpenTS from Games.
+An update keeps your game data, settings and saved games. PackMan won't
+install over a !OpenTS it didn't install itself, so move an earlier one
+out of the way first (its gamedata directory can be moved into the new one).
+
 The main menu footer and the Info window on the icon bar show the version of
 this RISC OS port.
 
