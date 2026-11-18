@@ -24,8 +24,10 @@ screen. Its source code, updates and bug reports for the port are at the
 RISC OS port address above.
 
 PackMan can install it and keep it up to date: in PackMan's Sources
-(Choices, then Sources), add http://davidsharp.com/riscos/pkg/index
-(https:// works too), update the lists, and install OpenTS from Games.
+(Choices, then Sources), add https://davidsharp.com/riscos/pkg/index,
+update the lists, and install OpenTS from Games. On a machine that can't
+use https (an older SSL module or out-of-date certificates), add
+http://davidsharp.com/riscos/pkg/index instead.
 An update keeps your game data, settings and saved games. PackMan won't
 install over a !OpenTS it didn't install itself, so move an earlier one
 out of the way first (its gamedata directory can be moved into the new one).
