@@ -242,6 +242,24 @@ Known issues in this preview:
     has closed, so it doesn't start.
 
 
+Changes
+-------
+
+0.1.3
+  * PackMan can install the game and keep it up to date, and an update
+    keeps your settings.
+  * Menus and pop-ups draw only what has changed, so they take far less
+    work, and the pointer keeps moving while a game loads.
+  * Changing the screen mode on the desktop while the game waits there
+    (after Shift+F12) no longer leaves the game drawing in a corner of
+    the screen.
+  * The DigitalRenderer module is included, for sound where !System
+    hasn't got it.
+
+0.1.2
+  * The first release.
+
+
 Licences
 --------
 
