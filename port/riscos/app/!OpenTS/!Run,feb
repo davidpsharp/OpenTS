@@ -21,7 +21,9 @@ If <OpenTS$Checker>=0 Then IfThere <OpenTS$Dir>.gamedata.TIBSUN/MIX Then Unset O
 Unset OpenTS$Checker
 If "<OpenTS$NoDataCheck>"<>"" Then Unset OpenTS$DataProblem
 | DigitalRenderer plays the sound (through UnixLib's /dev/dsp). Without it the game is silent.
+| !System's if it has one (a RISC OS Pi disc has 0.55), otherwise the copy here (0.56).
 RMEnsure DigitalRenderer 0.55 IfThere System:Modules.DRenderer Then RMLoad System:Modules.DRenderer
+RMEnsure DigitalRenderer 0.55 IfThere <OpenTS$Dir>.Modules.DRenderer Then RMLoad <OpenTS$Dir>.Modules.DRenderer
 | On the Pi the display stretches the game's frames through an overlay (VideoOverlay, in !System).
 RMEnsure VideoOverlay 0.00 IfThere System:Modules.VideoOverlay Then RMLoad System:Modules.VideoOverlay
 | The heap goes in a dynamic area, so the slot only holds the program.

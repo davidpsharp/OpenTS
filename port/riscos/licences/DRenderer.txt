@@ -1,0 +1,36 @@
+DRenderer Module
+
+Upstream sources were downloaded and built by
+the GCCSDK Developers.
+
+The contact details of the maintainer(s) of this package are:
+GCCSDK mailing list <gcc@gccsdk.riscos.info>
+
+For information on GCC for RISC OS see the URL:
+
+http://gccsdk.riscos.info/
+
+Copyright notices for the component(s) of this package follow.
+
+DRenderer source
+
+Distribution and use are subject to the GNU General Public License,
+a copy of which may be found in the file:
+
+<Common_Licences>.GPL-2
+
+or downloaded from the URL:
+
+http://www.riscpkg.org/licences/GPL-2.txt
+
+DRenderer development headers
+
+Distribution and use are subject to the GNU Lesser General Public License,
+a copy of which may be found in the file:
+
+<Common_Licences>.LGPL-2/1
+
+or downloaded from the URL:
+
+http://www.riscpkg.org/licences/LGPL-2.1.txt
+

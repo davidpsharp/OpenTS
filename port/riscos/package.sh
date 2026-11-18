@@ -49,4 +49,10 @@ cp $W/ui/OFL.txt "$OUT/Licences/Arimo,fff"
 # UnixLib (libunixlib.a, from the riscos-unixlib release in the Dockerfile) is linked into
 # !RunImage; its COPYING is kept here because the release has none of its own.
 cp $W/port/riscos/licences/UnixLib.txt "$OUT/Licences/UnixLib,fff"
+
+# DigitalRenderer, for the sound where !System hasn't got it (RISC OS on Linux, say): GCCSDK's
+# DRenderer 0.56 package from riscos.info, with its copyright notice.
+mkdir -p "$OUT/Modules"
+cp "$W/port/riscos/modules/DRenderer,ffa" "$OUT/Modules/"
+cp $W/port/riscos/licences/DRenderer.txt "$OUT/Licences/DRenderer,fff"
 echo "$OUT"

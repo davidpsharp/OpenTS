@@ -39,7 +39,8 @@ Requirements
   * These modules, which come with RISC OS 5 or from PackMan, in !System:
       SharedUnixLibrary 1.16 or later
       ARMEABISupport 1.03 or later
-      DigitalRenderer, for sound (without it the game is silent)
+    The DigitalRenderer module, which plays the sound, is in !OpenTS.Modules:
+    the game uses it when !System hasn't got one (version 0.55 or later).
   * About 250 MB of disc space for the game data, plus about 1.4 GB if
     you want all the movies.
 
@@ -249,12 +250,13 @@ additional terms. See !OpenTS.Licences for the licence texts:
   Arimo           the Arimo font in !OpenTS.ui (SIL Open Font Licence)
   UnixLib         the C library in !RunImage (BSD and LGPL; an unofficial
                   fork of GCCSDK's UnixLib, riscos-unixlib 5.0.3.3)
+  DRenderer       the DigitalRenderer module in !OpenTS.Modules (GPL-2)
 
 The GPL means you can have the source code: this RISC OS version's, with
 all of its changes to OpenTS, is at the RISC OS port address above (the
 riscos branch), and OpenTS's own at the OpenTS address. SharedUnixLibrary
-is from the GCCSDK project at https://www.riscos.info/, and the C library in
-!RunImage from https://github.com/adyoull/riscos-unixlib.
+and DigitalRenderer are from the GCCSDK project at https://www.riscos.info/,
+and the C library in !RunImage from https://github.com/adyoull/riscos-unixlib.
 
 Command & Conquer and Tiberian Sun are trademarks of Electronic Arts.
 OpenTS is not affiliated with or endorsed by Electronic Arts. The game
